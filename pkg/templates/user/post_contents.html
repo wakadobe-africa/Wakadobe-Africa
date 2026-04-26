@@ -1,0 +1,96 @@
+{% extends "user/base.html" %}
+
+{% block title %}{{ post.title }} | Wakadobe Africa{% endblock title %}
+
+{% block body_attrs %} class="post-page"{% endblock body_attrs %}
+
+{% block content %}
+    <main>
+        <section class="post-section" aria-label="Post details">
+            <article class="post-box">
+                <img src="{{ post.image }}" alt="{{ post.title }}" class="post-cover">
+                {% if post.tags %}
+                <div class="post-tags">
+                    {% for tag in post.tags %}
+                    <span class="badge text-bg-light border me-1">{{ tag }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                <div class="post-content">
+                    <header>
+                        <p class="badge text-bg-primary mb-2">{{ post.category }}</p>
+                        <h2 class="mb-2">{{ post.title }}</h2>
+                        <p class="post-meta">By {{ post.author }} on {{ post.date }}</p>
+                    </header>
+
+                    {% set share_url = request.url %}
+                    <div class="share-buttons d-flex flex-wrap gap-2 mb-4">
+                        <a href="https://www.linkedin.com/sharing/share-offsite/?url={{ share_url|urlencode }}" target="_blank" rel="noopener" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-linkedin"></i> LinkedIn
+                        </a>
+                        <a href="https://twitter.com/intent/tweet?text={{ post.title|urlencode }}&url={{ share_url|urlencode }}" target="_blank" rel="noopener" class="btn btn-outline-info btn-sm">
+                            <i class="bi bi-twitter"></i> X
+                        </a>
+                        <a href="https://discord.com/channels/@me" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-chat-left-text"></i> Discord
+                        </a>
+                        <a href="https://api.whatsapp.com/send?text={{ (post.title ~ ' ' ~ share_url)|urlencode }}" target="_blank" rel="noopener" class="btn btn-outline-success btn-sm">
+                            <i class="bi bi-whatsapp"></i> WhatsApp
+                        </a>
+                    </div>
+
+                    <div class="post-paragraph">{{ post.content_html|safe }}</div>
+                </div>
+            </article>
+
+            <section class="comments-section mt-5">
+                <h3 class="mb-4">Comments ({{ comments|length }})</h3>
+                
+                {% if current_reader %}
+                <div class="comment-form-box mb-4">
+                    <form method="POST" action="{{ url_for('add_comment', post_id=post.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="reader_id" value="{{ current_reader.id }}">
+                        <div class="mb-3">
+                            <label for="commentText" class="form-label">Add a Comment</label>
+                            <textarea id="commentText" name="comment" class="form-control" rows="4" placeholder="Share your thoughts..." required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Post Comment</button>
+                    </form>
+                </div>
+                {% else %}
+                <div class="alert alert-info mb-4">
+                    <a href="{{ url_for('reader_login') }}" class="alert-link">Sign in</a> to leave a comment.
+                </div>
+                {% endif %}
+
+                {% if comments %}
+                <div class="comments-list">
+                    {% for comment in comments %}
+                    <div class="comment-item mb-2 p-2 border-start border-primary">
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <strong class="text-dark">{{ comment.reader_name }}</strong>
+                            <small class="text-muted">{{ comment.date }}</small>
+                        </div>
+                        <p class="text-secondary mb-0">{{ comment.content }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted">No comments yet. Be the first to comment!</p>
+                {% endif %}
+            </section>
+
+            <aside class="related-box" aria-label="Related posts">
+                <h3 class="h5 mb-3">Read more articles</h3>
+                <div class="related-list">
+                    {% for related in related_posts %}
+                    <a href="{{ url_for('post_details', post_id=related.id) }}">{{ related.title }}</a>
+                    {% endfor %}
+                </div>
+            </aside>
+        </section>
+    </main>
+{% endblock content %}
+
+{% block footer %}{% endblock footer %}

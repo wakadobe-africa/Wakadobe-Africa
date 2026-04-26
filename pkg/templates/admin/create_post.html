@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Post - Admin</title>
+    <link href="{{ url_for('static', filename='bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.snow.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+</head>
+<body>
+    <body class="admin-body">
+    <header class="topbar">
+        <nav class="container-fluid d-flex align-items-start justify-content-between py-3">
+            <div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="brand-dot">WD</span>
+                    <h1 class="h4 mb-0">Wakadobe Africa Admin</h1>
+                </div>
+                <div class="d-flex justify-content-end mt-1">
+                    <button id="sidebarToggle" class="btn btn-outline-primary btn-sm" type="button" aria-label="Toggle sidebar">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                            <path fill-rule="evenodd" d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <span class="badge text-bg-light border">Admin: Wakadobe Team</span>
+                <a href="{{ url_for('log_out') }}" class="btn btn-sm btn-outline-secondary">Log out</a>
+            </div>
+        </nav>
+    </header>
+
+    <div class="container-fluid">
+        <div class="row">
+            <nav class="col-md-2 sidebar d-flex flex-column p-3 min-vh-100" id="sidebarCollapse">
+                <a href="/wakadobe/admin" class="text-decoration-none mb-4">
+                    <span class="fw-semibold text-dark">Admin Panel</span>
+                </a>
+                <ul class="nav nav-pills flex-column mb-auto">
+                    <li class="nav-item"><a href="/wakadobe/admin" class="nav-link">Dashboard</a></li>
+                    <li class="nav-item"><a href="#" class="nav-link active">Create Post</a></li>
+                    <li class="nav-item"><a href="{{ url_for('admin_drafts') }}" class="nav-link">Drafts</a></li>
+                    <li class="nav-item"><a href="{{ url_for('admin_comments') }}" class="nav-link">Comments moderation</a></li>
+                    <li class="nav-item"><a href="{{ url_for('admin_categories') }}" class="nav-link">Categories management</a></li>
+                    <li class="nav-item"><a href="{{ url_for('admin_create_account') }}" class="nav-link">Admin Accounts</a></li>
+                    <li class="nav-item"><a href="{{ url_for('admin_settings') }}" class="nav-link">Settings</a></li>
+                </ul>
+            </nav>
+
+            <main class="col-md-10 ms-auto py-4 px-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h2 class="h4 mb-1">{% if form.draft_id.data %}Continue Draft{% else %}Create New Post{% endif %}</h2>
+                        <p class="text-muted mb-0">Write and format your article with inline images using the editor below.</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <a href="{{ url_for('admin_drafts') }}" class="btn btn-outline-primary">View Drafts</a>
+                        <a href="/wakadobe/admin" class="btn btn-outline-secondary">Back to Dashboard</a>
+                    </div>
+                </div>
+
+                {% if form_error %}
+                <div class="alert alert-danger" role="alert">{{ form_error }}</div>
+                {% endif %}
+
+                <form class="row g-3" method="post" enctype="multipart/form-data" id="createPostForm" action="{{ url_for('create_post') }}">
+                    {{ form.csrf_token }}
+                    {{ form.draft_id(id='draftIdField') }}
+                    {{ form.post_status(id='postStatusField') }}
+                    {{ form.content_html(id='contentHtmlField') }}
+                    <div class="col-lg-7">
+                        <section class="admin-card p-3 mb-3">
+                            <h5 class="mb-3">Post Details</h5>
+                            <div class="mb-3">
+                                <label for="title" class="form-label">Post Title</label>
+                                <input id="title" name="title" type="text" class="form-control" placeholder="Enter post title" value="{{ form.title.data or '' }}" required>
+                                {% if form.title.errors %}
+                                <div class="text-danger small mt-1">{{ form.title.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="mb-3">
+                                <label for="excerpt" class="form-label">Short Description</label>
+                                <textarea id="excerpt" name="excerpt" class="form-control" rows="3" placeholder="Short summary shown in post cards" required>{{ form.excerpt.data or '' }}</textarea>
+                            </div>
+                            <div>
+                                <label for="coverImage" class="form-label">Cover Image</label>
+                                <input id="coverImage" name="cover_image" type="file" accept="image/*" class="form-control">
+                                {% if form.cover_image.errors %}
+                                <div class="text-danger small mt-1">{{ form.cover_image.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="mt-3">
+                                <label for="categoryId" class="form-label">Category</label>
+                                <select id="categoryId" name="category_id" class="form-select" required>
+                                    <option value="">Select category</option>
+                                    {% for category in categories %}
+                                    <option value="{{ category.id }}" {% if form.category_id.data == category.id %}selected{% endif %}>{{ category.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="mt-3">
+                                <label for="tagIds" class="form-label">Tags</label>
+                                <select id="tagIds" name="tag_ids" class="form-select" multiple size="6">
+                                    {% for tag in tags %}
+                                    <option value="{{ tag.id }}" {% if tag.id in (form.tag_ids.data or []) %}selected{% endif %}>{{ tag.name }}</option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">Hold Ctrl (Windows) to select multiple tags.</div>
+                            </div>
+
+                           {# <div class="mt-3">
+                                <label for="newTags" class="form-label">Add New Tags</label>
+                                <input id="newTags" name="new_tags" type="text" class="form-control" placeholder="e.g. startup, economy, ai" value="{{ form.new_tags.data or '' }}">
+                                <div class="form-text">Comma-separated. New tags will be created automatically.</div>
+                            </div> #}
+                        </section>
+
+                        
+                        <section class="admin-card p-3">
+                            <h5 class="mb-3">Create Post Content</h5>
+                            <p class="preview-muted mb-3">Use the image button in the toolbar to upload and place images directly inside the text flow.</p>
+                            <div class="editor-shell">
+                                <div id="postEditor"></div>
+                            </div>
+                            {% if form.content_html.errors %}
+                            <div id="contentHtmlError" class="text-danger small mt-2">{{ form.content_html.errors[0] }}</div>
+                            {% endif %}
+                        </section>
+                    </div>
+
+                    <div class="col-lg-5">
+                        <section class="admin-card p-3 sticky-top preview-panel">
+                            <h5 class="mb-3">Live Preview</h5>
+                            <div class="preview-box" id="previewBox">
+                                <p class="preview-muted mb-0">Your preview appears here as you type.</p>
+                            </div>
+                        </section>
+                    </div>
+
+                    <div class="col-12 d-flex justify-content-end gap-2">
+                        <button type="submit" class="btn btn-primary">Publish Post</button>
+                        <button type="button" class="btn btn-outline-secondary" id="saveDraftBtn">Save Draft</button>
+                    </div>
+                </form>
+            </main>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.min.js"></script>
+    <script>
+        const previewBox = document.getElementById('previewBox');
+        const titleInput = document.getElementById('title');
+        const excerptInput = document.getElementById('excerpt');
+        const coverImageInput = document.getElementById('coverImage');
+        const contentHtmlField = document.getElementById('contentHtmlField');
+        const postStatusField = document.getElementById('postStatusField');
+        const csrfTokenValue = document.querySelector('input[name="csrf_token"]').value;
+
+        const quill = new Quill('#postEditor', {
+            theme: 'snow',
+            placeholder: 'Write your post content here...',
+            modules: {
+                toolbar: {
+                    container: [
+                        [{ header: [1, 2, 3, false] }],
+                        ['bold', 'italic', 'underline', 'blockquote'],
+                        [{ list: 'ordered' }, { list: 'bullet' }],
+                        ['link', 'image'],
+                        ['clean']
+                    ],
+                    handlers: {
+                        image: imageHandler,
+                        link: linkHandler
+                    }
+                }
+            }
+        });
+
+        if (contentHtmlField.value) {
+            quill.root.innerHTML = contentHtmlField.value;
+        }
+
+        function imageHandler() {
+            const picker = document.createElement('input');
+            picker.setAttribute('type', 'file');
+            picker.setAttribute('accept', 'image/*,video/*');
+            picker.click();
+
+            picker.onchange = async () => {
+                const file = picker.files[0];
+                if (!file) {
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('image', file);
+                formData.append('csrf_token', csrfTokenValue);
+
+                try {
+                    const response = await fetch("{{ url_for('upload_inline_image') }}", {
+                        method: 'POST',
+                        body: formData,
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Image upload failed');
+                    }
+
+                    const result = await response.json();
+                    const range = quill.getSelection(true);
+                    quill.insertEmbed(range.index, 'image', result.url, 'user');
+                    quill.setSelection(range.index + 1);
+                    refreshPreview();
+                } catch (err) {
+                    alert('Could not upload image. Please try again.');
+                }
+            };
+        }
+
+        function linkHandler() {
+            const range = quill.getSelection();
+            if (range && range.length === 0) {
+                const url = prompt('Enter URL:');
+                if (url) {
+                    const fullUrl = url.startsWith('http') ? url : 'https://' + url;
+                    quill.insertText(range.index, url, { link: fullUrl });
+                }
+            } else if (range && range.length > 0) {
+                const url = prompt('Enter URL:', 'https://');
+                if (url) {
+                    const fullUrl = url.startsWith('http') ? url : 'https://' + url;
+                    quill.formatText(range.index, range.length, { link: fullUrl });
+                }
+            } else {
+                alert('Please select text to create a link.');
+            }
+        }
+
+        function refreshPreview() {
+            const title = titleInput.value.trim();
+            const excerpt = excerptInput.value.trim();
+            const editorHtml = quill.root.innerHTML;
+            const fragments = [];
+
+            if (title) {
+                fragments.push(`<h4>${title}</h4>`);
+            }
+
+            if (excerpt) {
+                fragments.push(`<p class="text-muted">${excerpt}</p>`);
+            }
+
+            if (coverImageInput.files[0]) {
+                const coverUrl = URL.createObjectURL(coverImageInput.files[0]);
+                fragments.push(`<img src="${coverUrl}" alt="Cover image preview">`);
+            }
+
+            if (editorHtml && editorHtml !== '<p><br></p>') {
+                fragments.push(editorHtml);
+            }
+
+            if (fragments.length === 0) {
+                previewBox.innerHTML = '<p class="preview-muted mb-0">Your preview appears here as you type.</p>';
+            } else {
+                previewBox.innerHTML = fragments.join('');
+            }
+
+            contentHtmlField.value = editorHtml === '<p><br></p>' ? '' : editorHtml;
+        }
+
+        titleInput.addEventListener('input', refreshPreview);
+        excerptInput.addEventListener('input', refreshPreview);
+        coverImageInput.addEventListener('change', refreshPreview);
+        quill.on('text-change', refreshPreview);
+
+        document.getElementById('createPostForm').addEventListener('submit', () => {
+            postStatusField.value = 'published';
+            contentHtmlField.value = quill.root.innerHTML === '<p><br></p>' ? '' : quill.root.innerHTML;
+        });
+
+        document.getElementById('saveDraftBtn').addEventListener('click', () => {
+            postStatusField.value = 'draft';
+            contentHtmlField.value = quill.root.innerHTML === '<p><br></p>' ? '' : quill.root.innerHTML;
+            document.getElementById('createPostForm').submit();
+        });
+
+        refreshPreview();
+    </script>
+    <script>
+        document.getElementById('sidebarToggle').addEventListener('click', function () {
+            document.getElementById('sidebarCollapse').classList.toggle('sidebar-hidden');
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comments - Admin</title>
+    <link href="{{ url_for('static', filename='bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+</head>
+<body>
+    <body class="admin-body">
+    <header class="topbar">
+        <nav class="container-fluid d-flex align-items-start justify-content-between py-3">
+            <div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="brand-dot">WD</span>
+                    <h1 class="h4 mb-0">Wakadobe Africa Admin</h1>
+                </div>
+                <div class="d-flex justify-content-end mt-1">
+                    <button id="sidebarToggle" class="btn btn-outline-primary btn-sm" type="button" aria-label="Toggle sidebar">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                            <path fill-rule="evenodd" d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <span class="badge text-bg-light border">Admin: Wakadobe Team</span>
+                <a href="{{ url_for('log_out') }}" class="btn btn-sm btn-outline-secondary">Log out</a>
+            </div>
+        </nav>
+    </header>
+
+    <div class="container-fluid">
+        <div class="row">
+            <nav class="col-md-2 sidebar d-flex flex-column p-3 min-vh-100" id="sidebarCollapse">
+                <a href="{{ url_for('admin') }}" class="text-decoration-none mb-4">
+                    <span class="fw-semibold text-dark">Admin Panel</span>
+                </a>
+                <ul class="nav nav-pills flex-column mb-auto">
+                    <li class="nav-item"><a href="{{ url_for('admin') }}" class="nav-link">Dashboard</a></li>
+                    <li class="nav-item"><a href="{{ url_for('create_post') }}" class="nav-link">Create Post</a></li>
+                    <li class="nav-item"><a href="{{ url_for('admin_drafts') }}" class="nav-link">Drafts</a></li>
+                    <li class="nav-item"><a href="{{ url_for('admin_categories') }}" class="nav-link">Categories</a></li>
+                    <li class="nav-item"><a href="{{ url_for('admin_comments') }}" class="nav-link active">Comments</a></li>
+                    <li class="nav-item"><a href="{{ url_for('admin_create_account') }}" class="nav-link">Users</a></li>
+                    <li class="nav-item"><a href="{{ url_for('admin_settings') }}" class="nav-link">Settings</a></li>
+                </ul>
+            </nav>
+
+            <main class="col-md-10 ms-auto py-4 px-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h2 class="h4 mb-1">Comment Moderation</h2>
+                        <p class="text-muted mb-0">Comments are visible by default. Flag comments that are biased, harmful, or encourage bad behaviour.</p>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge text-bg-light border px-3 py-2">{{ comments|length }} Comment{% if comments|length != 1 %}s{% endif %}</span>
+                        <form method="post" action="{{ url_for('purge_flagged_comments') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Purge Expired Flagged</button>
+                        </form>
+                    </div>
+                </div>
+
+                {% if form_error %}
+                <div class="alert alert-danger" role="alert">{{ form_error }}</div>
+                {% endif %}
+                {% if form_success %}
+                <div class="alert alert-success" role="alert">{{ form_success }}</div>
+                {% endif %}
+
+                <div class="row g-3">
+                    {% for comment in comments %}
+                    <div class="col-12">
+                        <section class="admin-card p-3">
+                            <div class="d-flex flex-column flex-lg-row justify-content-between gap-3">
+                                <div class="flex-grow-1">
+                                    <div class="d-flex align-items-center gap-2 mb-2">
+                                        <span class="status-pill status-{{ comment.status }}">{{ comment.status|capitalize }}</span>
+                                        <span class="meta-row">By {{ comment.reader_name }}</span>
+                                        <span class="meta-row">On {{ comment.created_at }}</span>
+                                    </div>
+                                    <div class="comment-body mb-2">{{ comment.content }}</div>
+                                    <div class="meta-row">
+                                        Post:
+                                        {% if comment.post_id %}
+                                        <a href="{{ url_for('post_details', post_id=comment.post_id) }}" class="text-decoration-none">{{ comment.post_title }}</a>
+                                        {% else %}
+                                        {{ comment.post_title }}
+                                        {% endif %}
+                                    </div>
+                                    {% if comment.status == 'flagged' %}
+                                    <div class="meta-row mt-2">Flagged on {{ comment.flagged_at }}. Scheduled deletion: {{ comment.delete_on }}.</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="d-flex gap-2 align-items-start">
+                                    {% if comment.status == 'flagged' %}
+                                    <form method="post" action="{{ url_for('approve_comment', comment_id=comment.id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-outline-success btn-sm">Restore</button>
+                                    </form>
+                                    {% endif %}
+                                    <form method="post" action="{{ url_for('flag_comment', comment_id=comment.id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm" {% if comment.status == 'flagged' %}disabled{% endif %}>Flag</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                    {% else %}
+                    <div class="col-12">
+                        <section class="admin-card p-4 text-center text-muted">
+                            No comments available for moderation yet.
+                        </section>
+                    </div>
+                    {% endfor %}
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+    <script>
+        document.getElementById('sidebarToggle').addEventListener('click', function () {
+            document.getElementById('sidebarCollapse').classList.toggle('sidebar-hidden');
+        });
+    </script>
+</body>
+</html>

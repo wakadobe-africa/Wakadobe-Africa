@@ -1,0 +1,177 @@
+{% extends "user/base.html" %}
+
+{% block content %}
+    <main>
+        <section class="container-fluid hero-section">
+            <div class="row">
+                <div class="col-md-7 hero-content py-5 px-4">
+                    <h2 class="display-4 fw-bold">Africa's mindshift blog</h2>
+                    
+                    <h4>I write about my thoughts on Africa, telling its stories and my takes on technology, business, and personal development in Africa.</h4>
+                </div>
+            
+            <div class="signup-card col-md-3">
+                <button class="close-btn" aria-label="Close">&times;</button>
+                <h2>Sign Up to get updates on our posts and newsletters</h2>
+                <form>
+                    <div>
+                        <input type="text" placeholder="Your Name"/>
+                    </div>  
+                    <div>
+                        <input type="email" placeholder="Your Email"/>
+                    </div>
+                    <button type="submit">Subscribe</button>
+                </form>
+            </div>
+        </div>
+        </section>
+        <section class="container mt-3 mb-5 px-4 px-lg-5">
+        
+        <div class="row g-4">
+            <div class="col-md-3 my-4 latest-posts-section">
+                <h2 class="mb-4">Latest Posts</h2>
+                {% for post in latest_posts %}
+                <div class="card mb-3">
+                    <img src="{{ post.image }}" class="card-img-top" alt="{{ post.title }}">
+                    <div class="card-body">
+                        <p class="mb-2">
+                            <span class="badge text-bg-light border">{{ post.category }}</span>
+                        </p>
+                        <h5 class="card-title">{{ post.title }}</h5>
+                        <p class="small text-muted mb-2">By {{ post.author }} on {{ post.date }}</p>
+                        <p class="card-text">{{ post.excerpt }}</p>
+                        <a href="{{ url_for('post_details', post_id=post.id) }}" class="btn btn-primary">Read More</a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="col-md-6">
+                <h2 class="my-4">Popular Posts</h2>
+                <div class="row g-3">
+                    {% for post in popular_posts %}
+                    <div class="col-sm-6">
+                        <div class="card h-100">
+                            <img src="{{ post.image }}" class="card-img-top" alt="{{ post.title }}">
+                            <div class="card-body">
+                                <p class="mb-2">
+                                    <span class="badge text-bg-light border">{{ post.category }}</span>
+                                </p>
+                                <h5 class="card-title">{{ post.title }}</h5>
+                                <p class="small text-muted mb-2">By {{ post.author }} on {{ post.date }}</p>
+                                <p class="card-text">{{ post.excerpt }}</p>
+                                <a href="{{ url_for('post_details', post_id=post.id) }}" class="btn btn-outline-primary btn-sm">Read Post</a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="col-md-3 my-4">
+                
+
+                <div class="card search-card mb-4">
+                    <h5>Browse Subcategory Posts</h5>
+                    <label for="subcategorySelect" class="form-label">Choose subcategory</label>
+                    <select id="subcategorySelect" class="form-select" aria-label="Choose subcategory">
+                        <option value="">Select a subcategory</option>
+                        {% for subcategory in subcategories %}
+                        <option value="{{ subcategory.id }}">{{ subcategory.label }}</option>
+                        {% endfor %}
+                    </select>
+                    <div id="subcategoryPosts" class="mt-3"></div>
+                </div>
+                
+                <div class="card about-card sticky-blogger-card">
+                    <div class="card-header">  
+                        <h4 class="mb-2 text-start">The blogger</h4>
+                        <hr class="mb-1">
+                    </div>
+                    <img src="/static/city.jpg" alt="Author photo">
+                    <h5>Wakadobe</h5>
+                    <p>I'm a writer and researcher passionate about Africa's growth story — covering tech, business, and personal development with clarity and depth.</p>
+                    
+                </div>
+            </div>
+            </div>
+        </section>
+    </main>
+{% endblock content %}
+
+{% block extra_scripts %}
+<script>
+    const closeButton = document.querySelector(".close-btn");
+    const signupCard = document.querySelector(".hero-section .signup-card");
+    const subcategorySelect = document.querySelector("#subcategorySelect");
+    const subcategoryPosts = document.querySelector("#subcategoryPosts");
+
+    if (closeButton && signupCard) {
+        closeButton.addEventListener("click", function () {
+            signupCard.remove();
+        });
+    }
+
+    function renderSubcategoryPosts(payload) {
+        if (!subcategoryPosts) {
+            return;
+        }
+
+        const posts = Array.isArray(payload.posts) ? payload.posts : [];
+        if (!posts.length) {
+            subcategoryPosts.innerHTML = "<p class='small text-muted mb-0'>No published posts in this subcategory yet.</p>";
+            return;
+        }
+
+        const heading = payload.subcategory && payload.subcategory.name
+            ? payload.subcategory.name
+            : "Selected Subcategory";
+
+        const listItems = posts.map(function (post) {
+            return `
+                <li class='list-group-item d-flex justify-content-between align-items-start'>
+                    <div class='me-2'>
+                        <a class='fw-semibold text-decoration-none' href='/wakadobe/posts/${post.id}'>${post.title}</a>
+                        <div class='small text-muted'>${post.date}</div>
+                    </div>
+                    <a class='btn btn-outline-primary btn-sm' href='/wakadobe/posts/${post.id}'>Select</a>
+                </li>
+            `;
+        }).join("");
+
+        subcategoryPosts.innerHTML = `
+            <h6 class='mb-2'>Posts in ${heading}</h6>
+            <ul class='list-group list-group-flush'>${listItems}</ul>
+        `;
+    }
+
+    if (subcategorySelect && subcategoryPosts) {
+        subcategorySelect.addEventListener("change", async function (event) {
+            const subcategoryId = event.target.value;
+
+            if (!subcategoryId) {
+                subcategoryPosts.innerHTML = "";
+                return;
+            }
+
+            subcategoryPosts.innerHTML = "<p class='small text-muted mb-0'>Loading posts...</p>";
+
+            try {
+                const response = await fetch(`/wakadobe/subcategories/${subcategoryId}/posts`, {
+                    method: "GET",
+                    headers: {
+                        "Accept": "application/json"
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error("Failed to fetch subcategory posts");
+                }
+
+                const data = await response.json();
+                renderSubcategoryPosts(data);
+            } catch (error) {
+                subcategoryPosts.innerHTML = "<p class='small text-danger mb-0'>Could not load posts. Please try again.</p>";
+            }
+        });
+    }
+</script>
+{% endblock extra_scripts %}

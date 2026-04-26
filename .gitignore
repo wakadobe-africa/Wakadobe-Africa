@@ -1,0 +1,17 @@
+# Environment files
+.env
+*.env
+.env.*
+
+# Secret configuration files
+instance/config.py
+secrets.yml
+secrets.yaml
+*.key
+*.pem
+*.crt
+
+# Python cache and environment
+__pycache__/
+*.py[cod]
+*vwakablog*/

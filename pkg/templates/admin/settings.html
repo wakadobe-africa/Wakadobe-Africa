@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - Admin</title>
+    <link href="{{ url_for('static', filename='bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+</head>
+<body>
+    <body class="admin-body">
+    <header class="topbar">
+        <nav class="container-fluid d-flex align-items-start justify-content-between py-3">
+            <div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="brand-dot">WD</span>
+                    <h1 class="h4 mb-0">Wakadobe Africa Admin</h1>
+                </div>
+                <div class="d-flex justify-content-end mt-1">
+                    <button id="sidebarToggle" class="btn btn-outline-primary btn-sm" type="button" aria-label="Toggle sidebar">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                            <path fill-rule="evenodd" d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <span class="badge text-bg-light border">Admin Settings</span>
+                <a href="{{ url_for('log_out') }}" class="btn btn-sm btn-outline-secondary">Log out</a>
+            </div>
+        </nav>
+    </header>
+
+    <div class="container-fluid">
+        <div class="row">
+            <nav class="col-md-2 sidebar d-flex flex-column p-3 min-vh-100" id="sidebarCollapse">
+                <a href="{{ url_for('admin') }}" class="text-decoration-none mb-4">
+                    <span class="fw-semibold text-dark">Admin Panel</span>
+                </a>
+                <ul class="nav nav-pills flex-column mb-auto">
+                    <li class="nav-item"><a href="/wakadobe/admin" class="nav-link active">Dashboard</a></li>
+                    <li class="nav-item"><a href="{{ url_for('create_post') }}" class="nav-link">Create Post</a></li>
+                    <li class="nav-item"><a href="{{ url_for('admin_drafts') }}" class="nav-link">Drafts</a></li>
+                    <li class="nav-item"><a href="{{ url_for('admin_comments') }}" class="nav-link">Comments moderation</a></li>
+                    <li class="nav-item"><a href="{{ url_for('admin_categories') }}" class="nav-link">Categories management</a></li>
+                    <li class="nav-item"><a href="{{ url_for('admin_create_account') }}" class="nav-link">Admin Accounts</a></li>
+                    <li class="nav-item"><a href="{{ url_for('admin_settings') }}" class="nav-link">Settings</a></li>
+                </ul>
+            </nav>
+
+            <main class="col-md-10 ms-auto py-4 px-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h2 class="h4 mb-1">Settings</h2>
+                        <p class="text-muted mb-0">Update your profile details and access category management tools.</p>
+                    </div>
+                    <a href="{{ url_for('admin_categories') }}" class="btn btn-outline-primary">Open Categories</a>
+                </div>
+
+                {% if form_error %}
+                <div class="alert alert-danger" role="alert">{{ form_error }}</div>
+                {% endif %}
+                {% if form_success %}
+                <div class="alert alert-success" role="alert">{{ form_success }}</div>
+                {% endif %}
+
+                <div class="row g-3">
+                    <div class="col-lg-7">
+                        <section class="settings-card p-3 p-lg-4">
+                                                    <section class="admin-card p-3 p-lg-4">
+                            <h5 class="mb-3">Profile Update</h5>
+                            <form method="post" action="{{ url_for('admin_settings') }}">
+                                {{ form.csrf_token }}
+
+                                <div class="mb-3">
+                                    <label class="form-label" for="name">Admin Name</label>
+                                    <input id="name" type="text" name="name" class="form-control" value="{{ form.name.data or '' }}" required>
+                                    {% if form.name.errors %}
+                                    <div class="text-danger small mt-1">{{ form.name.errors[0] }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label" for="email">Email</label>
+                                    <input id="email" type="email" name="email" class="form-control" value="{{ form.email.data or '' }}" required>
+                                    {% if form.email.errors %}
+                                    <div class="text-danger small mt-1">{{ form.email.errors[0] }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label" for="password">New Password</label>
+                                    <input id="password" type="password" name="password" class="form-control" autocomplete="new-password">
+                                    <div class="hint-text mt-1">Leave blank to keep your current password.</div>
+                                    {% if form.password.errors %}
+                                    <div class="text-danger small mt-1">{{ form.password.errors[0] }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label" for="confirmPassword">Confirm New Password</label>
+                                    <input id="confirmPassword" type="password" name="confirm_password" class="form-control" autocomplete="new-password">
+                                    {% if form.confirm_password.errors %}
+                                    <div class="text-danger small mt-1">{{ form.confirm_password.errors[0] }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <button type="submit" class="btn btn-primary">Save Profile Changes</button>
+                            </form>
+                        </section>
+                    </div>
+
+                    <div class="col-lg-5">
+                        <section class="settings-card p-3 p-lg-4 mb-3">
+                                                    <section class="admin-card p-3 p-lg-4 mb-3">
+                                                    <section class="admin-card p-3 p-lg-4">
+                            <h5 class="mb-2">Categories Management</h5>
+                            <p class="hint-text mb-3">Manage categories, sub-categories, and tags from one place.</p>
+                            <div class="d-grid gap-2">
+                                <a href="{{ url_for('admin_categories') }}" class="btn btn-outline-primary">Manage Categories</a>
+                                <a href="{{ url_for('create_post') }}" class="btn btn-outline-secondary">Create Post</a>
+                            </div>
+                        </section>
+
+                        <section class="settings-card p-3 p-lg-4">
+                            <h6 class="mb-2">Tips</h6>
+                            <ul class="mb-0 ps-3 hint-text">
+                                <li>Use a strong password with at least 8 characters.</li>
+                                <li>Keep your email up to date for admin notifications.</li>
+                                <li>Review categories often to keep content organized.</li>
+                            </ul>
+                        </section>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+    <script>
+        document.getElementById('sidebarToggle').addEventListener('click', function () {
+            document.getElementById('sidebarCollapse').classList.toggle('sidebar-hidden');
+        });
+    </script>
+</body>
+</html>

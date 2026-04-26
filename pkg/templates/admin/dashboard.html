@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link href="{{ url_for('static', filename='bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+</head>
+<body>
+    <body class="admin-body">
+    <header class="topbar">
+        <nav class="container-fluid d-flex align-items-start justify-content-between py-3">
+            <div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="brand-dot">WD</span>
+                    <h1 class="h4 mb-0">Wakadobe Africa Admin</h1>
+                </div>
+                <div class="d-flex justify-content-end mt-1">
+                    <button id="sidebarToggle" class="btn btn-outline-primary btn-sm d-lg-none" type="button" aria-label="Toggle sidebar">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                            <path fill-rule="evenodd" d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <span class="badge text-bg-light border">Admin: Wakadobe Team</span>
+                <a href="{{ url_for('log_out') }}" class="btn btn-sm btn-outline-secondary">Log out</a>
+            </div>
+        </nav>
+    </header>
+
+    <div class="container-fluid">
+        <div class="row">
+            <nav class="col-md-2 sidebar d-flex flex-column p-3 min-vh-100" id="sidebarCollapse">
+                <a href="/wakadobe/admin" class="text-decoration-none mb-4">
+                    <span class="fw-semibold text-dark">Admin Panel</span>
+                </a>
+                <ul class="nav nav-pills flex-column mb-auto">
+                    <li class="nav-item"><a href="/wakadobe/admin" class="nav-link active">Dashboard</a></li>
+                    <li class="nav-item"><a href="{{ url_for('create_post') }}" class="nav-link">Create Post</a></li>
+                    <li class="nav-item"><a href="{{ url_for('admin_drafts') }}" class="nav-link">Drafts</a></li>
+                    <li class="nav-item"><a href="{{ url_for('admin_comments') }}" class="nav-link">Comments moderation</a></li>
+                    <li class="nav-item"><a href="{{ url_for('admin_categories') }}" class="nav-link">Categories management</a></li>
+                    <li class="nav-item"><a href="{{ url_for('admin_create_account') }}" class="nav-link">Admin Accounts</a></li>
+                    <li class="nav-item"><a href="{{ url_for('admin_settings') }}" class="nav-link">Settings</a></li>
+                </ul>
+                <!-- <hr>
+                <div class="small text-muted">
+                    Last login: 14 Apr 2026, 08:10
+                </div> -->
+            </nav>
+
+            <main class="col-md-10 ms-auto py-4 px-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h2 class="h4 mb-1">Blog Admin Activity Dashboard</h2>
+                        <p class="text-muted mb-0">Overview of publishing, moderation, and community actions.</p>
+                    </div>
+                    <a href="{{ url_for('create_post') }}" class="btn btn-primary">Create New Post</a>
+                </div>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-sm-6 col-lg-3">
+                        <div class="admin-card p-3 h-100">
+                            <div class="kpi-label">Published Posts</div>
+                            <h3 class="mb-0">128</h3>
+                            <small class="text-success">+6 this week</small>
+                        </div>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <div class="admin-card p-3 h-100">
+                            <div class="kpi-label">Draft Posts</div>
+                            <h3 class="mb-0">14</h3>
+                            <small class="text-muted">3 pending review</small>
+                        </div>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <div class="admin-card p-3 h-100">
+                            <div class="kpi-label">Comments Flagged</div>
+                            <h3 class="mb-0">9</h3>
+                            <small class="text-danger">Needs moderation</small>
+                        </div>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <div class="admin-card p-3 h-100">
+                            <div class="kpi-label">New Subscribers</div>
+                            <h3 class="mb-0">42</h3>
+                            <small class="text-success">+18% this month</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-lg-8">
+                        <div class="admin-card p-3 mb-3">
+                            <h5 class="mb-3">Recent Post Activities</h5>
+                            <div class="table-responsive">
+                                <table class="table table-striped align-middle mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Post Title</th>
+                                            <th>Time</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for recent_post in recent_posts %}
+                                        <tr>
+                                            <td>{{ recent_post.title }}</td>
+                                            <td>{{ recent_post.time }}</td>
+                                            <td><span class="badge text-bg-{{ recent_post.badge_class }}">{{ recent_post.status }}</span></td>
+                                        </tr>
+                                        {% else %}
+                                        <tr>
+                                            <td colspan="3" class="text-center text-muted py-4">No posts available yet.</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="admin-card p-3">
+                            <h5 class="mb-3">Comments Moderation Queue</h5>
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                    "Great piece, but the 2025 stat needs a source."<span class="badge text-bg-warning">Review</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                    "Can you share the podcast link mentioned in paragraph 3?"<span class="badge text-bg-secondary">Pending</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                    "Spam link detected in comments"<span class="badge text-bg-danger">Flagged</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-4">
+                        <div class="admin-card p-3 mb-3">
+                            <h5 class="mb-3">Admin Timeline</h5>
+                            <div class="timeline-item">
+                                <strong>10:05 AM</strong>
+                                <div class="text-muted small">Approved 2 guest author bios.</div>
+                            </div>
+                            <div class="timeline-item">
+                                <strong>09:32 AM</strong>
+                                <div class="text-muted small">Reordered homepage featured posts.</div>
+                            </div>
+                            <div class="timeline-item">
+                                <strong>08:48 AM</strong>
+                                <div class="text-muted small">Removed 1 spam account.</div>
+                            </div>
+                            <div class="timeline-item">
+                                <strong>Yesterday</strong>
+                                <div class="text-muted small">Generated weekly content report.</div>
+                            </div>
+                        </div>
+
+                        <div class="admin-card p-3">
+                            <h5 class="mb-3">Quick Actions</h5>
+                            <div class="d-grid gap-2">
+                                <a href="{{ url_for('admin_drafts') }}" class="btn btn-outline-primary">Review Drafts</a>
+                                <a href="{{ url_for('admin_comments') }}" class="btn btn-outline-primary">Approve Comments</a>
+                                <a href="{{ url_for('admin_categories') }}" class="btn btn-outline-primary">Manage Categories</a>
+                                <button class="btn btn-outline-primary">Export Activity Log</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+    <script>
+        document.getElementById('sidebarToggle').addEventListener('click', function () {
+            document.getElementById('sidebarCollapse').classList.toggle('sidebar-hidden');
+        });
+    </script>
+</body>
+</html>

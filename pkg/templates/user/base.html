@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Wakadobe Africa is a blog for African professionals and entrepreneurs, sharing insights on technology, business, leadership, career growth, and digital innovation.">
+    <meta name="keywords" content="African blog, entrepreneurship, tech insights, business growth, leadership, career development, digital innovation, Wakadobe Africa">
+    <meta name="author" content="Wakadobe Africa">
+    <meta property="og:title" content="Wakadobe Africa">
+    <meta property="og:description" content="Explore articles on technology, business, leadership, and career growth from Wakadobe Africa.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ request.url }}">
+    <meta property="og:site_name" content="Wakadobe Africa">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Wakadobe Africa">
+    <meta name="twitter:description" content="Explore articles on technology, business, leadership, and career growth from Wakadobe Africa.">
+    {% block meta %}{% endblock meta %}
+
+    <title>{% block title %}Wakadobe Africa{% endblock title %}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="/static/bootstrap/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/static/styles.css">
+    
+</head>
+
+<body{% block body_attrs %}{% endblock body_attrs %}>
+
+    <header class="site-header border-bottom">
+        <span class="brand-dot">WD</span>
+        <h1 class="site-brand h3">Wakadobe Africa</h1>
+        <nav class="site-nav" aria-label="Main navigation">
+            <ul class="site-nav-list">
+                <li><a href="{{ url_for('about') }}">About</a></li>
+                <li><a href="{{ url_for('wakadobe_index') }}">Reads</a></li>
+                <li class="dropdown">
+                    <a href="#" class="dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">Wakadobe digest</a>
+                    <ul class="dropdown-menu">
+                        {% for cat in nav_categories %}
+                        <li><a class="dropdown-item" href="{{ url_for('category_posts', category_id=cat.id) }}">{{ cat.name }}</a></li>
+                        {% endfor %}
+                    </ul>
+                </li>
+                <li><a href="{{ url_for('newsletters') }}">Newsletters</a></li>
+
+                {% if is_reader_logged_in %}
+                
+                <li><a href="{{ url_for('reader_logout') }}">Logout</a></li>
+                {% else %}
+                <li><a href="{{ url_for('reader_signup') }}">Sign Up</a></li>
+                <li><a href="{{ url_for('reader_login') }}">Login</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </header>
+
+    {% block content %}{% endblock content %}
+
+    {% block footer %}
+    <footer class="border-top py-4 mt-4">
+        <div class="container">
+            <div class="row gy-4">
+
+                <!-- About Column -->
+                <div class="col-12 col-md-6">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <h5 class="fw-bold mb-2">About This Blog</h5>
+                            <p class="text-muted">
+                                I decided to build this blog to share insights, experiences,
+                                and knowledge that can help others grow personally and
+                                professionally, and to connect with people passionate about
+                                Africa's growth story.
+                                <a href="{{ url_for('about') }}" class="text-decoration-none">Read more</a>
+                            </p>
+                        </div>
+                        <div class="col-md-12">
+                            <div class="signup-card col-md-3">
+                                <h2>Sign Up to get updates on our posts and newsletters</h2>
+                                <form>
+                                    <div>
+                                        <input type="text" placeholder="Your Name"/>
+                                    </div>
+                                    <div>
+                                        <input type="email" placeholder="Your Email"/>
+                                    </div>
+                                    <button type="submit">Subscribe</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contact Column -->
+                <div class="col-6 col-md-3">
+                    <h5 class="fw-bold mb-2">Contact</h5>
+                    <ul class="list-unstyled">
+                        <li>
+                            <a href="mailto:example@example.com" class="text-decoration-none">
+                                example@example.com
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Follow Column -->
+                <div class="col-6 col-md-3">
+                    <h5 class="fw-bold mb-2">Follow Us</h5>
+                    <ul class="list-unstyled d-flex gap-3">
+                        <li><a href="#" class="text-decoration-none">Twitter</a></li>
+                        <li><a href="#" class="text-decoration-none">LinkedIn</a></li>
+                        <li><a href="#" class="text-decoration-none">Facebook</a></li>
+                    </ul>
+                </div>
+
+            </div>
+            
+        </div>
+    </footer>
+    {% endblock footer %}
+        <hr class="mt-4 mb-2 text-primary footer-divider">
+        <p class="text-center text-muted small pb-3">
+            &copy;<span id="year"></span> Wakadobe Africa. All rights reserved.
+        </p>
+    <script src="/static/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('year').textContent = new Date().getFullYear();
+    </script>
+    {% block extra_scripts %}{% endblock extra_scripts %}
+
+</body>
+</html>

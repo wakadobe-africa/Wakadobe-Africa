@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drafts - Admin</title>
+    <link href="{{ url_for('static', filename='bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Source+Serif+4:opsz,wght@8..60,500;8..60,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+    <style>
+        :root {
+            --bg: #eef4fb;
+            --surface: #ffffff;
+            --surface-soft: #f6f9ff;
+            --ink: #13233a;
+            --muted: #617591;
+            --line: #d8e3f4;
+            --brand: #0b63f0;
+            --brand-soft: #e7f0ff;
+            --accent: #ff8a00;
+            --shadow: 0 14px 30px rgba(16, 39, 74, 0.09);
+        }
+
+        body {
+            background:
+                radial-gradient(circle at 95% 3%, rgba(11, 99, 240, 0.10), transparent 26%),
+                radial-gradient(circle at 5% 20%, rgba(255, 138, 0, 0.10), transparent 23%),
+                var(--bg);
+            color: var(--ink);
+            font-family: 'Manrope', sans-serif;
+        }
+
+        .topbar {
+            background: rgba(255, 255, 255, 0.94);
+            -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: blur(8px);
+            border-bottom: 1px solid var(--line);
+        }
+
+        .brand-dot {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(140deg, var(--brand), #3a8bff);
+            color: #ffffff;
+            font-weight: 800;
+        }
+
+        .sidebar {
+            background: var(--surface);
+            border-right: 1px solid var(--line);
+        }
+
+        .sidebar .nav-link {
+            color: var(--ink);
+            border-radius: 10px;
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+
+        .sidebar .nav-link.active,
+        .sidebar .nav-link:hover {
+            background: var(--brand-soft);
+            color: var(--brand);
+        }
+
+        .hero {
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            background: linear-gradient(150deg, #ffffff, #f8fbff);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .hero::after {
+            content: '';
+            position: absolute;
+            right: -48px;
+            top: -48px;
+            width: 200px;
+            height: 200px;
+            border-radius: 999px;
+            background: radial-gradient(circle at center, rgba(11, 99, 240, 0.28), rgba(11, 99, 240, 0));
+        }
+
+        .hero-title {
+            font-family: 'Source Serif 4', serif;
+            font-size: 2.1rem;
+            letter-spacing: 0.01em;
+            margin: 0;
+        }
+
+        .meta-pill {
+            border: 1px solid var(--line);
+            background: var(--surface-soft);
+            color: var(--muted);
+            border-radius: 999px;
+            padding: 6px 12px;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+
+        .draft-card {
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            background: var(--surface);
+            box-shadow: 0 10px 24px rgba(17, 42, 82, 0.07);
+            overflow: hidden;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .draft-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 16px 30px rgba(17, 42, 82, 0.12);
+        }
+
+        .draft-image {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            background: #d7e4f7;
+        }
+
+        .draft-category {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--brand-soft);
+            color: var(--brand);
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 6px 10px;
+        }
+
+        .draft-title {
+            font-size: 1.04rem;
+            font-weight: 800;
+            margin: 0;
+        }
+
+        .draft-excerpt {
+            color: var(--muted);
+            font-size: 0.92rem;
+            min-height: 68px;
+        }
+
+        .tag-chip {
+            display: inline-block;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            padding: 4px 10px;
+            margin-right: 6px;
+            margin-bottom: 6px;
+            font-size: 0.76rem;
+            color: #3c5170;
+            background: #f8fbff;
+        }
+
+        .empty-state {
+            border: 1px dashed #c2d4ef;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.86);
+            text-align: center;
+            padding: 48px 20px;
+        }
+
+        @media (max-width: 991.98px) {
+            .hero-title {
+                font-size: 1.7rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <nav class="container-fluid d-flex align-items-start justify-content-between py-3">
+            <div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="brand-dot">WD</span>
+                    <h1 class="h4 mb-0">Wakadobe Africa Admin</h1>
+                </div>
+                <div class="d-flex justify-content-end mt-1">
+                    <button id="sidebarToggle" class="btn btn-outline-primary btn-sm" type="button" aria-label="Toggle sidebar">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                            <path fill-rule="evenodd" d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <span class="badge text-bg-light border">Admin: Wakadobe Team</span>
+                <a href="{{ url_for('log_out') }}" class="btn btn-sm btn-outline-secondary">Log out</a>
+            </div>
+        </nav>
+    </header>
+
+    <div class="container-fluid">
+        <div class="row">
+            <nav class="col-md-2 sidebar d-flex flex-column p-3 min-vh-100" id="sidebarCollapse">
+                <a href="{{ url_for('admin') }}" class="text-decoration-none mb-4">
+                    <span class="fw-semibold text-dark">Admin Panel</span>
+                </a>
+                <ul class="nav nav-pills flex-column mb-auto">
+                    <li class="nav-item"><a href="{{ url_for('admin') }}" class="nav-link">Dashboard</a></li>
+                    <li class="nav-item"><a href="{{ url_for('create_post') }}" class="nav-link">Create Post</a></li>
+                    <li class="nav-item"><a href="{{ url_for('admin_drafts') }}" class="nav-link active">Drafts</a></li>
+                    <li class="nav-item"><a href="{{ url_for('admin_comments') }}" class="nav-link">Comments moderation</a></li>
+                    <li class="nav-item"><a href="{{ url_for('admin_categories') }}" class="nav-link">Categories management</a></li>
+                    <li class="nav-item"><a href="{{ url_for('admin_create_account') }}" class="nav-link">Users</a></li>
+                    <li class="nav-item"><a href="{{ url_for('admin_settings') }}" class="nav-link">Settings</a></li>
+                </ul>
+            </nav>
+
+            <main class="col-md-10 ms-auto py-4 px-4">
+                <section class="hero p-4 p-lg-5 mb-4">
+                    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center gap-3">
+                        <div>
+                            <h2 class="hero-title">Draft Workspace</h2>
+                            <p class="text-muted mb-0">Review unfinished stories, preview them instantly, and continue writing without losing context.</p>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="">{{ drafts|length }} Draft{% if drafts|length != 1 %}s{% endif %}</span>
+                            <a href="{{ url_for('create_post') }}" class="btn btn-primary">Go To Create Post</a>
+                        </div>
+                    </div>
+                </section>
+
+                {% if drafts %}
+                <div class="row g-3">
+                    {% for draft in drafts %}
+                    <div class="col-md-6 col-xl-4">
+                        <article class="draft-card h-100 d-flex flex-column">
+                            <img src="{{ draft.cover_image }}" alt="{{ draft.title }}" class="draft-image">
+                            <div class="p-3 d-flex flex-column flex-grow-1">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <span class="draft-category">{{ draft.category }}</span>
+                                    <small class="text-muted">{{ draft.created_at }}</small>
+                                </div>
+                                <h3 class="draft-title mb-2">{{ draft.title }}</h3>
+                                <p class="draft-excerpt mb-3">{{ draft.excerpt }}</p>
+
+                                {% if draft.tags %}
+                                <div class="mb-3">
+                                    {% for tag in draft.tags[:4] %}
+                                    <span class="tag-chip">{{ tag }}</span>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+
+                                <div class="mt-auto d-flex gap-2">
+                                    <a href="{{ url_for('preview_draft', post_id=draft.id) }}" class="btn btn-outline-primary btn-sm">Preview</a>
+                                    <a href="{{ url_for('create_post', draft_id=draft.id) }}" class="btn btn-primary btn-sm">Continue Draft</a>
+                                </div>
+                            </div>
+                        </article>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <h3 class="h5">No Drafts Yet</h3>
+                    <p class="text-muted mb-3">Start writing your next story and save it as draft to see it here.</p>
+                    <a href="{{ url_for('create_post') }}" class="btn btn-primary">Create Your First Draft</a>
+                </div>
+                {% endif %}
+            </main>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+    <script>
+        document.getElementById('sidebarToggle').addEventListener('click', function () {
+            document.getElementById('sidebarCollapse').classList.toggle('sidebar-hidden');
+        });
+    </script>
+
+</body>
+</html>
