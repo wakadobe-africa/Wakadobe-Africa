@@ -11,7 +11,7 @@ class Admin(db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     password = db.Column(db.String(255), nullable=False)
 
-    role = db.Column(db.String(20), default="reader")  # admin, author, contributor
+    role = db.Column(db.String(20), default="admin")  # admin, author, contributor
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 

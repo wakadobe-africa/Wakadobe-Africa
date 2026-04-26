@@ -255,13 +255,7 @@ def _serialize_dashboard_post(post_obj):
     error_message="Too many admin signup attempts from your IP. Please try again in an hour.",
 )
 def admin_signup():
-    # Allow signup only if no admins exist yet (first admin) or if admin is logged in
-    admin_count = Admin.query.count()
-    current_admin = session.get(ADMIN_SESSION_KEY)
-
-    if admin_count > 0 and not current_admin:
-        return redirect(url_for("admin_login"))
-
+    # Allow public signup for admin accounts (not protected by admin session)
     form = CreateAdminAccountForm()
     if request.method == "GET":
         return render_template("admin/admin_signup.html", form=form, form_error=None, form_success=None)
@@ -283,13 +277,8 @@ def admin_signup():
         db.session.add(new_admin)
         db.session.commit()
 
-        # If this is the first admin, log them in automatically
-        if admin_count == 0:
-            session[ADMIN_SESSION_KEY] = new_admin.id
-            return redirect(url_for("admin"))
-
-        # If created by existing admin, show success message
-        return render_template("admin/admin_signup.html", form=CreateAdminAccountForm(), form_error=None, form_success="Admin account created successfully!")
+        # Show success message (don't auto-login for security)
+        return render_template("admin/admin_signup.html", form=CreateAdminAccountForm(), form_error=None, form_success="Admin account created successfully! You can now log in.")
 
     except Exception as e:
         db.session.rollback()
@@ -308,11 +297,8 @@ def admin_login():
 
     form = AdminLoginForm()
     show_created = request.args.get("created") == "1"
-    admin_count = Admin.query.count()
-    allow_signup = admin_count == 0  # Allow signup only if no admins exist
-
     if request.method == "GET":
-        return render_template("admin/login.html", form=form, form_error=None, show_created=show_created, allow_signup=allow_signup)
+        return render_template("admin/login.html", form=form, form_error=None, show_created=show_created)
 
     if not form.validate_on_submit():
         first_error = next(iter(form.errors.values()))[0] if form.errors else "Please fix invalid fields and try again."
