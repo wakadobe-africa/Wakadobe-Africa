@@ -8,7 +8,7 @@ class General(object):
     SECRET_KEY = os.getenv('SECRET_KEY')
     SQLALCHEMY_DATABASE_URI = os.getenv('SQLALCHEMY_DATABASE_URI')
     DEBUG = False
-    TESTING = False
+    
     SQLALCHEMY_TRACK_MODIFICATION=False
     RATELIMIT_DEFAULT = '120 per hour'
     RATELIMIT_STORAGE_URI = 'memory://'
