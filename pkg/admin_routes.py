@@ -248,6 +248,54 @@ def _serialize_dashboard_post(post_obj):
     }
 
 
+@app.route("/wakadobe/admin/signup", methods=["GET", "POST"])
+@limiter.limit(
+    "3 per hour",
+    methods=["POST"],
+    error_message="Too many admin signup attempts from your IP. Please try again in an hour.",
+)
+def admin_signup():
+    # Allow signup only if no admins exist yet (first admin) or if admin is logged in
+    admin_count = Admin.query.count()
+    current_admin = session.get(ADMIN_SESSION_KEY)
+
+    if admin_count > 0 and not current_admin:
+        return redirect(url_for("admin_login"))
+
+    form = CreateAdminAccountForm()
+    if request.method == "GET":
+        return render_template("admin/admin_signup.html", form=form, form_error=None, form_success=None)
+
+    if not form.validate_on_submit():
+        first_error = next(iter(form.errors.values()))[0] if form.errors else "Please fix invalid fields and try again."
+        return render_template("admin/admin_signup.html", form=form, form_error=first_error, form_success=None)
+
+    # Create new admin
+    hashed_password = generate_password_hash(form.password.data)
+    new_admin = Admin(
+        name=form.name.data.strip(),
+        email=form.email.data.strip().lower(),
+        password=hashed_password,
+        role=form.role.data or "admin"
+    )
+
+    try:
+        db.session.add(new_admin)
+        db.session.commit()
+
+        # If this is the first admin, log them in automatically
+        if admin_count == 0:
+            session[ADMIN_SESSION_KEY] = new_admin.id
+            return redirect(url_for("admin"))
+
+        # If created by existing admin, show success message
+        return render_template("admin/admin_signup.html", form=CreateAdminAccountForm(), form_error=None, form_success="Admin account created successfully!")
+
+    except Exception as e:
+        db.session.rollback()
+        return render_template("admin/admin_signup.html", form=form, form_error="Failed to create admin account. Please try again.", form_success=None)
+
+
 @app.route("/wakadobe/admin/login", methods=["GET", "POST"])
 @limiter.limit(
     "5 per 10 minutes",
@@ -260,8 +308,11 @@ def admin_login():
 
     form = AdminLoginForm()
     show_created = request.args.get("created") == "1"
+    admin_count = Admin.query.count()
+    allow_signup = admin_count == 0  # Allow signup only if no admins exist
+
     if request.method == "GET":
-        return render_template("admin/login.html", form=form, form_error=None, show_created=show_created)
+        return render_template("admin/login.html", form=form, form_error=None, show_created=show_created, allow_signup=allow_signup)
 
     if not form.validate_on_submit():
         first_error = next(iter(form.errors.values()))[0] if form.errors else "Please fix invalid fields and try again."

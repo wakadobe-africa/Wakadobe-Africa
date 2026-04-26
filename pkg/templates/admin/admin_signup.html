@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Sign Up</title>
+    <link href="{{ url_for('static', filename='bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+</head>
+<body>
+    <body class="admin-login-body">
+    <section class="login-card">
+        <div class="d-flex align-items-center gap-2 mb-3">
+            <span class="brand-dot">WD</span>
+            <h1 class="h4 mb-0">Wakadobe Admin Sign Up</h1>
+        </div>
+
+        <p class="helper-text mb-3">Create your admin account to access the dashboard and content management.</p>
+
+        {% if form_error %}
+        <div class="alert alert-danger" role="alert">{{ form_error }}</div>
+        {% endif %}
+
+        {% if form_success %}
+        <div class="alert alert-success" role="alert">{{ form_success }}</div>
+        {% endif %}
+
+        <form method="post" action="{{ url_for('admin_signup') }}">
+            {{ form.csrf_token }}
+
+            <div class="mb-3">
+                <label class="form-label" for="name">Admin Name</label>
+                <input id="name" type="text" name="name" class="form-control" value="{{ form.name.data or '' }}" required>
+                {% if form.name.errors %}
+                <div class="text-danger small mt-1">{{ form.name.errors[0] }}</div>
+                {% endif %}
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" for="email">Email</label>
+                <input id="email" type="email" name="email" class="form-control" value="{{ form.email.data or '' }}" required>
+                {% if form.email.errors %}
+                <div class="text-danger small mt-1">{{ form.email.errors[0] }}</div>
+                {% endif %}
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" for="password">Password</label>
+                <input id="password" type="password" name="password" class="form-control" autocomplete="new-password" required>
+                {% if form.password.errors %}
+                <div class="text-danger small mt-1">{{ form.password.errors[0] }}</div>
+                {% endif %}
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" for="confirmPassword">Confirm Password</label>
+                <input id="confirmPassword" type="password" name="confirm_password" class="form-control" autocomplete="new-password" required>
+                {% if form.confirm_password.errors %}
+                <div class="text-danger small mt-1">{{ form.confirm_password.errors[0] }}</div>
+                {% endif %}
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100">Create Admin Account</button>
+        </form>
+
+        <div class="text-center mt-3">
+            <p class="mb-0">Already have an account? <a href="{{ url_for('admin_login') }}">Sign in</a></p>
+        </div>
+    </section>

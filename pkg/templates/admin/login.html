@@ -46,6 +46,12 @@
 
             <button type="submit" class="btn btn-primary w-100">Login</button>
         </form>
+
+        {% if allow_signup %}
+        <div class="text-center mt-3">
+            <p class="mb-0">No admin accounts yet? <a href="{{ url_for('admin_signup') }}">Create the first admin account</a></p>
+        </div>
+        {% endif %}
     </section>
 
     <script src="{{ url_for('static', filename='bootstrap/js/bootstrap.bundle.min.js') }}"></script>
