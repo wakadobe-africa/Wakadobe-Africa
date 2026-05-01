@@ -181,9 +181,10 @@ def about():
 
 @app.route("/wakadobe/readers/sign-up", methods=["GET", "POST"])
 def reader_signup():
+    abort(404)  # Disable public sign-up by returning 404
     if session.get(READER_SESSION_KEY):
         return redirect(url_for("wakadobe_index"))
-
+    
     form = ReaderSignupForm()
     if request.method == "GET":
         return render_template("user/reader_signup.html", form=form, form_error=None)
@@ -210,6 +211,7 @@ def reader_signup():
     error_message="Too many login attempts. Please try again in 10 minutes.",
 )
 def reader_login():
+    abort(404)  # Disable public login by returning 404
     if session.get(READER_SESSION_KEY):
         return redirect(url_for("wakadobe_index"))
 
