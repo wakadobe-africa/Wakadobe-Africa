@@ -260,6 +260,7 @@ li a {
     flex-shrink: 0;
     width: min(92%, 420px);
     padding: 32px;
+    align-self: center;
     border-radius: 12px;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
     background-color: #ffffff;

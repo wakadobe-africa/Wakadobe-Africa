@@ -7,7 +7,7 @@ from sqlalchemy import func
 from wtforms import HiddenField, PasswordField, SelectField, SelectMultipleField, StringField, TextAreaField
 from wtforms.validators import AnyOf, DataRequired, EqualTo, Length, Optional, ValidationError
 
-from pkg.blogmodel import Admin, Category, Reader, Tag
+from pkg.blogmodel import Admin, Category, Reader, Subcategory, Tag
 
 
 MAX_CONTENT_HTML_LENGTH = 100_000
@@ -46,6 +46,7 @@ class CreatePostForm(FlaskForm):
         validators=[Optional(), FileAllowed(["jpg", "jpeg", "png", "gif", "webp"], "Invalid image file.")],
     )
     category_id = SelectField("Category", coerce=int, validators=[Optional()])
+    subcategory_id = SelectField("Subcategory", coerce=int, validators=[Optional()])
     tag_ids = SelectMultipleField("Tags", coerce=int, validators=[Optional()])
     new_tags = StringField("Add New Tags", validators=[Optional()])
     post_status = HiddenField(
@@ -91,6 +92,21 @@ class CreatePostForm(FlaskForm):
             raise ValidationError("One or more selected tags are invalid.")
 
         self.valid_tag_ids = unique_ids
+
+    def validate_subcategory_id(self, field):
+        if field.data is None:
+            self.valid_subcategory = None
+            return
+
+        subcategory_obj = Subcategory.query.get(field.data)
+        if subcategory_obj is None:
+            raise ValidationError("Invalid subcategory selected.")
+
+        category_id = getattr(self.category_id, "data", None)
+        if category_id and subcategory_obj.category_id != category_id:
+            raise ValidationError("Subcategory does not belong to the selected category.")
+
+        self.valid_subcategory = subcategory_obj
 
     def validate_new_tags(self, field):
         if not field.data:

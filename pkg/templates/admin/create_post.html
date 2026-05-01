@@ -103,6 +103,20 @@
                             </div>
 
                             <div class="mt-3">
+                                <label for="subcategoryId" class="form-label">Subcategory</label>
+                                <select id="subcategoryId" name="subcategory_id" class="form-select">
+                                    <option value="">Select subcategory</option>
+                                    {% for subcategory in subcategories %}
+                                    <option value="{{ subcategory.id }}" data-category="{{ subcategory.category_id }}" {% if form.subcategory_id.data == subcategory.id %}selected{% endif %}>{{ subcategory.name }}</option>
+                                    {% endfor %}
+                                </select>
+                                {% if form.subcategory_id.errors %}
+                                <div class="text-danger small mt-1">{{ form.subcategory_id.errors[0] }}</div>
+                                {% endif %}
+                                <div class="form-text">Choose a subcategory for the selected category.</div>
+                            </div>
+
+                            <div class="mt-3">
                                 <label for="tagIds" class="form-label">Tags</label>
                                 <select id="tagIds" name="tag_ids" class="form-select" multiple size="6">
                                     {% for tag in tags %}
@@ -157,9 +171,44 @@
         const titleInput = document.getElementById('title');
         const excerptInput = document.getElementById('excerpt');
         const coverImageInput = document.getElementById('coverImage');
+        const categorySelect = document.getElementById('categoryId');
+        const subcategorySelect = document.getElementById('subcategoryId');
         const contentHtmlField = document.getElementById('contentHtmlField');
         const postStatusField = document.getElementById('postStatusField');
         const csrfTokenValue = document.querySelector('input[name="csrf_token"]').value;
+
+        function updateSubcategoryOptions() {
+            if (!categorySelect || !subcategorySelect) {
+                return;
+            }
+
+            const selectedCategoryId = categorySelect.value;
+            let visibleSubcategories = 0;
+
+            Array.from(subcategorySelect.options).forEach((option) => {
+                if (!option.value) {
+                    option.hidden = false;
+                    option.disabled = false;
+                    return;
+                }
+
+                const optionCategoryId = option.dataset.category;
+                const visible = selectedCategoryId && optionCategoryId === selectedCategoryId;
+                option.hidden = !visible;
+                option.disabled = !visible;
+                if (visible) {
+                    visibleSubcategories += 1;
+                }
+            });
+
+            if (!selectedCategoryId || visibleSubcategories === 0) {
+                subcategorySelect.value = "";
+            }
+        }
+
+        if (categorySelect) {
+            categorySelect.addEventListener('change', updateSubcategoryOptions);
+        }
 
         const quill = new Quill('#postEditor', {
             theme: 'snow',
@@ -184,6 +233,8 @@
         if (contentHtmlField.value) {
             quill.root.innerHTML = contentHtmlField.value;
         }
+
+        updateSubcategoryOptions();
 
         function imageHandler() {
             const picker = document.createElement('input');

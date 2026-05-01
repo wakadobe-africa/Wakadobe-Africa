@@ -701,8 +701,15 @@ def create_post():
     if not admin_id:
         return redirect(url_for("admin_login", next=request.path))
     categories, tags = _load_category_and_tag_choices()
+    subcategories = (
+        Subcategory.query
+        .join(Category, Category.id == Subcategory.category_id)
+        .order_by(Category.name.asc(), Subcategory.name.asc())
+        .all()
+    )
     form = CreatePostForm()
     form.category_id.choices = [(category.id, category.name) for category in categories]
+    form.subcategory_id.choices = [(subcategory.id, subcategory.name) for subcategory in subcategories]
     form.tag_ids.choices = [(tag.id, tag.name) for tag in tags]
 
     draft_id = request.args.get("draft_id", type=int)
@@ -714,12 +721,20 @@ def create_post():
             form.title.data = editing_post.title
             form.excerpt.data = editing_post.excerpt
             form.content_html.data = editing_post.content
-            if editing_post.subcategory and editing_post.subcategory.category:
-                form.category_id.data = editing_post.subcategory.category.id
+            if editing_post.subcategory:
+                form.subcategory_id.data = editing_post.subcategory.id
+                if editing_post.subcategory.category:
+                    form.category_id.data = editing_post.subcategory.category.id
             form.tag_ids.data = [tag.id for tag in editing_post.tags]
 
     if request.method == "GET":
-        return render_template("admin/create_post.html", form=form, categories=categories, tags=tags)
+        return render_template(
+            "admin/create_post.html",
+            form=form,
+            categories=categories,
+            subcategories=subcategories,
+            tags=tags,
+        )
 
     if not form.validate_on_submit():
         first_error = next(iter(form.errors.values()))[0] if form.errors else "Please fix the errors and try again."
@@ -728,6 +743,7 @@ def create_post():
             form=form,
             form_error=first_error,
             categories=categories,
+            subcategories=subcategories,
             tags=tags,
         )
 
@@ -752,7 +768,13 @@ def create_post():
     if category_obj is None:
         category_obj = _get_or_create_default_category()
 
-    subcategory_obj = _get_or_create_default_subcategory(category_obj)
+    subcategory_obj = None
+    if form.subcategory_id.data:
+        subcategory_obj = Subcategory.query.get(form.subcategory_id.data)
+        if subcategory_obj is not None and subcategory_obj.category_id != category_obj.id:
+            subcategory_obj = None
+    if subcategory_obj is None:
+        subcategory_obj = _get_or_create_default_subcategory(category_obj)
 
     tags = []
     if selected_tag_ids:
