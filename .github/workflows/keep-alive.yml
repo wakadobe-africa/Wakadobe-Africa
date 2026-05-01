@@ -1,0 +1,17 @@
+name: Keep Alive
+
+on:
+  schedule:
+    # Run every 15 minutes (adjust as needed)
+    - cron: '*/14 * * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send keep-alive request
+        run: |
+          # Replace YOUR_RENDER_URL with your actual Render app URL
+          curl -f https://wakadobe-africa.onrender.com/ || echo "Request failed, but continuing..."
