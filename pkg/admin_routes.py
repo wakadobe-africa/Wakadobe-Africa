@@ -707,6 +707,7 @@ def create_post():
         .order_by(Category.name.asc(), Subcategory.name.asc())
         .all()
     )
+    # print(subcategories)
     form = CreatePostForm()
     form.category_id.choices = [(category.id, category.name) for category in categories]
     form.subcategory_id.choices = [(subcategory.id, subcategory.name) for subcategory in subcategories]
