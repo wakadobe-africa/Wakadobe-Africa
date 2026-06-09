@@ -21,6 +21,10 @@
         <div class="alert alert-success" role="alert">Admin account created successfully. Sign in to continue.</div>
         {% endif %}
 
+        {% if show_reset_success %}
+        <div class="alert alert-success" role="alert">Password reset successful. Please sign in with your new password.</div>
+        {% endif %}
+
         {% if form_error %}
         <div class="alert alert-danger" role="alert">{{ form_error }}</div>
         {% endif %}
@@ -49,6 +53,7 @@
 
         <div class="text-center mt-3">
             <p class="mb-0">Need an admin account? <a href="{{ url_for('admin_signup') }}">Sign up</a></p>
+            <p class="mb-0"><a href="{{ url_for('admin_reset_password') }}">Reset password</a></p>
         </div>
     </section>
 

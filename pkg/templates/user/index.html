@@ -40,7 +40,7 @@
                         <h5 class="card-title">{{ post.title }}</h5>
                         <p class="small text-muted mb-2">By {{ post.author }} on {{ post.date }}</p>
                         <p class="card-text">{{ post.excerpt }}</p>
-                        <a href="{{ url_for('post_details', post_id=post.id) }}" class="btn btn-primary">Read More</a>
+                        <a href="{{ url_for('post_details', post_id=post.id, slug=post.slug) }}" class="btn btn-primary">Read More</a>
                     </div>
                 </div>
                 {% endfor %}
@@ -59,7 +59,7 @@
                                 <h5 class="card-title">{{ post.title }}</h5>
                                 <p class="small text-muted mb-2">By {{ post.author }} on {{ post.date }}</p>
                                 <p class="card-text">{{ post.excerpt }}</p>
-                                <a href="{{ url_for('post_details', post_id=post.id) }}" class="btn btn-outline-primary btn-sm">Read Post</a>
+                                <a href="{{ url_for('post_details', post_id=post.id, slug=post.slug) }}" class="btn btn-outline-primary btn-sm">Read Post</a>
                             </div>
                         </div>
                     </div>
@@ -129,10 +129,10 @@
             return `
                 <li class='list-group-item d-flex justify-content-between align-items-start'>
                     <div class='me-2'>
-                        <a class='fw-semibold text-decoration-none' href='/wakadobe/posts/${post.id}'>${post.title}</a>
+                        <a class='fw-semibold text-decoration-none' href='/wakadobe/posts/${post.id}/${post.slug}'>${post.title}</a>
                         <div class='small text-muted'>${post.date}</div>
                     </div>
-                    <a class='btn btn-outline-primary btn-sm' href='/wakadobe/posts/${post.id}'>Select</a>
+                    <a class='btn btn-outline-primary btn-sm' href='/wakadobe/posts/${post.id}/${post.slug}'>Select</a>
                 </li>
             `;
         }).join("");

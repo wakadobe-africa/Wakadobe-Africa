@@ -14,7 +14,7 @@ MAX_CONTENT_HTML_LENGTH = 100_000
 MAX_UPLOAD_IMAGE_BYTES = 5 * 1024 * 1024
 
 
-def _looks_like_email(value):
+def _is_valid_email(value):
     email = (value or "").strip()
     # Accept standard email formats and local development domains.
     return bool(re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email))
@@ -167,7 +167,7 @@ class UpdateProfileForm(FlaskForm):
         normalized_email = (field.data or "").strip().lower()
         if not normalized_email:
             raise ValidationError("Email is required.")
-        if not _looks_like_email(normalized_email):
+        if not _is_valid_email(normalized_email):
             raise ValidationError("Enter a valid email address.")
 
         existing = Admin.query.filter(func.lower(Admin.email) == normalized_email).first()
@@ -197,8 +197,8 @@ class CreateAdminAccountForm(FlaskForm):
         choices=[
             ("admin", "Admin"),
             ("author", "Author"),
+            ("editor", "Editor"),
             ("contributor", "Contributor"),
-            ("reader", "Reader"),
         ],
         validators=[DataRequired(message="Role is required.")],
     )
@@ -221,7 +221,7 @@ class CreateAdminAccountForm(FlaskForm):
         normalized_email = (field.data or "").strip().lower()
         if not normalized_email:
             raise ValidationError("Email is required.")
-        if not _looks_like_email(normalized_email):
+        if not _is_valid_email(normalized_email):
             raise ValidationError("Enter a valid email address.")
 
         existing = Admin.query.filter(func.lower(Admin.email) == normalized_email).first()
@@ -231,7 +231,7 @@ class CreateAdminAccountForm(FlaskForm):
         field.data = normalized_email
 
     def validate_role(self, field):
-        allowed_roles = {"admin", "author", "contributor", "reader"}
+        allowed_roles = {"admin", "author", "editor", "contributor"}
         selected = (field.data or "").strip().lower()
         if selected not in allowed_roles:
             raise ValidationError("Select a valid role.")
@@ -253,9 +253,55 @@ class AdminLoginForm(FlaskForm):
 
     def validate_email(self, field):
         normalized_email = (field.data or "").strip().lower()
-        if not _looks_like_email(normalized_email):
+        if not _is_valid_email(normalized_email):
             raise ValidationError("Enter a valid email address.")
         field.data = normalized_email
+
+
+class AdminOTPForm(FlaskForm):
+    otp_code = StringField(
+        "Verification Code",
+        validators=[
+            DataRequired(message="Verification code is required."),
+            Length(min=6, max=6, message="Enter a valid 6-digit verification code."),
+        ],
+    )
+
+    def validate_otp_code(self, field):
+        field.data = (field.data or "").strip()
+
+
+class AdminResetPasswordRequestForm(FlaskForm):
+    email = StringField(
+        "Email",
+        validators=[
+            DataRequired(message="Email is required."),
+            Length(max=120, message="Email cannot exceed 120 characters."),
+        ],
+    )
+
+    def validate_email(self, field):
+        normalized_email = (field.data or "").strip().lower()
+        if not _is_valid_email(normalized_email):
+            raise ValidationError("Enter a valid email address.")
+        field.data = normalized_email
+
+
+class AdminResetPasswordForm(FlaskForm):
+    new_password = PasswordField(
+        "New Password",
+        validators=[
+            DataRequired(message="New password is required."),
+            Length(min=8, max=255, message="Password must be between 8 and 255 characters."),
+        ],
+    )
+    confirm_new_password = PasswordField(
+        "Confirm New Password",
+        validators=[
+            DataRequired(message="Please confirm the new password."),
+            EqualTo("new_password", message="Password confirmation must match the new password."),
+        ],
+    )
 
 
 class ReaderSignupForm(FlaskForm):
@@ -292,7 +338,7 @@ class ReaderSignupForm(FlaskForm):
         normalized_email = (field.data or "").strip().lower()
         if not normalized_email:
             raise ValidationError("Email is required.")
-        if not _looks_like_email(normalized_email):
+        if not _is_valid_email(normalized_email):
             raise ValidationError("Enter a valid email address.")
 
         existing = Reader.query.filter(func.lower(Reader.email) == normalized_email).first()
@@ -317,12 +363,12 @@ class ReaderLoginForm(FlaskForm):
 
     def validate_email(self, field):
         normalized_email = (field.data or "").strip().lower()
-        if not _looks_like_email(normalized_email):
+        if not _is_valid_email(normalized_email):
             raise ValidationError("Enter a valid email address.")
         field.data = normalized_email
 
 
-class ReaderResetPasswordForm(FlaskForm):
+class PasswordResetEmailForm(FlaskForm):
     email = StringField(
         "Email",
         validators=[
@@ -330,6 +376,15 @@ class ReaderResetPasswordForm(FlaskForm):
             Length(max=120, message="Email cannot exceed 120 characters."),
         ],
     )
+
+    def validate_email(self, field):
+        normalized_email = (field.data or "").strip().lower()
+        if not _is_valid_email(normalized_email):
+            raise ValidationError("Enter a valid email address.")
+        field.data = normalized_email
+
+
+class ReaderResetPasswordForm(FlaskForm):
     new_password = PasswordField(
         "New Password",
         validators=[
@@ -344,9 +399,3 @@ class ReaderResetPasswordForm(FlaskForm):
             EqualTo("new_password", message="Password confirmation must match the new password."),
         ],
     )
-
-    def validate_email(self, field):
-        normalized_email = (field.data or "").strip().lower()
-        if not _looks_like_email(normalized_email):
-            raise ValidationError("Enter a valid email address.")
-        field.data = normalized_email

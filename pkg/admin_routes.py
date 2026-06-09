@@ -1,251 +1,50 @@
-import os
-import re
 from datetime import datetime, timedelta
 
 from flask import abort, jsonify, redirect, render_template, request, session, url_for
 from sqlalchemy import func
+from sqlalchemy.orm import joinedload
 from werkzeug.security import check_password_hash, generate_password_hash
-from werkzeug.utils import secure_filename
 
 from pkg import app
 from pkg.blogmodel import Admin, Category, Comment, Post, Subcategory, Tag, db
+from pkg.token import generate_admin_otp, send_admin_otp_email, verify_admin_otp
 from pkg.forms import (
     AdminLoginForm,
+    AdminOTPForm,
+    AdminResetPasswordForm,
+    AdminResetPasswordRequestForm,
     CreateAdminAccountForm,
     CreatePostForm,
     MAX_UPLOAD_IMAGE_BYTES,
     UpdateProfileForm,
     _get_file_size_bytes,
-    _strip_html,
+)
+from pkg.helpers import (
+    _format_post_date,
+    _serialize_admin_user,
+    _render_create_account_page,
+    _get_comment_status,
+    _serialize_admin_comment,
+    _render_comments_page,
+    _normalize_label,
+    _render_categories_page,
+    _allowed_image,
+    _save_uploaded_image,
+    _upload_cover_image,
+    _get_post_category,
+    _serialize_admin_draft,
+    _get_or_create_default_category,
+    _get_or_create_default_subcategory,
+    _load_category_and_tag_choices,
+    _serialize_dashboard_post,
+    _format_time_only
+    
 )
 from pkg.limiter import limiter
-from pkg.route_constants import ADMIN_SESSION_KEY
+from pkg.route_constants import ADMIN_PENDING_OTP_KEY, ADMIN_SESSION_KEY
+from pkg.token import generate_admin_otp, verify_admin_otp
 
 
-def _format_post_date(created_at):
-    if not created_at:
-        return ""
-    return created_at.strftime("%B %d, %Y").replace(" 0", " ")
-
-
-def _serialize_admin_user(admin_obj):
-    return {
-        "id": admin_obj.id,
-        "name": admin_obj.name,
-        "email": admin_obj.email,
-        "role": (admin_obj.role or "reader").capitalize(),
-        "created_at": _format_post_date(admin_obj.created_at),
-    }
-
-
-
-
-
-def _render_create_account_page(form, form_error=None, form_success=None, bootstrap_mode=False):
-    admins = Admin.query.order_by(Admin.created_at.desc(), Admin.id.desc()).all()
-    payload = [_serialize_admin_user(item) for item in admins]
-    return render_template(
-        "admin/create_account.html",
-        form=form,
-        admins=payload,
-        form_error=form_error,
-        form_success=form_success,
-        bootstrap_mode=bootstrap_mode,
-    )
-
-
-def _get_comment_status(comment_obj):
-    if comment_obj.flagged_at:
-        return "flagged"
-    return "approved"
-
-
-def _serialize_admin_comment(comment_obj):
-    delete_on = comment_obj.flagged_at + timedelta(days=2) if comment_obj.flagged_at else None
-    return {
-        "id": comment_obj.id,
-        "content": comment_obj.content,
-        "status": _get_comment_status(comment_obj),
-        "created_at": _format_post_date(comment_obj.created_at),
-        "flagged_at": _format_post_date(comment_obj.flagged_at),
-        "delete_on": _format_post_date(delete_on) if delete_on else "",
-        "reader_name": comment_obj.reader.name if comment_obj.reader else "Unknown Reader",
-        "post_id": comment_obj.post.id if comment_obj.post else None,
-        "post_title": comment_obj.post.title if comment_obj.post else "Unknown Post",
-    }
-
-
-def _render_comments_page(form_error=None, form_success=None):
-    comments = (
-        Comment.query
-        .order_by(Comment.flagged_at.desc(), Comment.created_at.desc())
-        .all()
-    )
-    payload = [_serialize_admin_comment(item) for item in comments]
-    return render_template(
-        "admin/comments.html",
-        comments=payload,
-        form_error=form_error,
-        form_success=form_success,
-    )
-
-
-def _normalize_label(raw_value):
-    return re.sub(r"\s+", " ", (raw_value or "").strip())
-
-
-def _get_category_overview_rows():
-    rows = (
-        db.session.query(
-            Category.id,
-            Category.name,
-            func.count(Post.id).label("post_count"),
-            func.count(func.distinct(Subcategory.id)).label("subcategory_count"),
-        )
-        .outerjoin(Subcategory, Subcategory.category_id == Category.id)
-        .outerjoin(Post, Post.subcategory_id == Subcategory.id)
-        .group_by(Category.id, Category.name)
-        .order_by(Category.name.asc())
-        .all()
-    )
-
-    return [
-        {
-            "id": row.id,
-            "name": row.name,
-            "post_count": int(row.post_count or 0),
-            "subcategory_count": int(row.subcategory_count or 0),
-        }
-        for row in rows
-    ]
-
-
-def _render_categories_page(form_error=None, form_success=None):
-    categories = Category.query.order_by(Category.name.asc()).all()
-    subcategories = (
-        Subcategory.query
-        .join(Category, Category.id == Subcategory.category_id)
-        .order_by(Category.name.asc(), Subcategory.name.asc())
-        .all()
-    )
-    tags = Tag.query.order_by(Tag.name.asc()).all()
-    overview_rows = _get_category_overview_rows()
-    return render_template(
-        "admin/categories.html",
-        categories=categories,
-        subcategories=subcategories,
-        tags=tags,
-        overview_rows=overview_rows,
-        form_error=form_error,
-        form_success=form_success,
-    )
-
-
-def _allowed_image(filename):
-    if "." not in filename:
-        return False
-    ext = filename.rsplit(".", 1)[1].lower()
-    return ext in {"jpg", "jpeg", "png", "gif", "webp"}
-
-
-def _save_uploaded_image(file_obj):
-    if not file_obj or not file_obj.filename:
-        return None
-
-    filename = secure_filename(file_obj.filename)
-    if not filename or not _allowed_image(filename):
-        return None
-
-    upload_dir = os.path.join(app.root_path, "static", "uploads")
-    os.makedirs(upload_dir, exist_ok=True)
-
-    timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S%f")
-    unique_name = f"{timestamp}_{filename}"
-    file_path = os.path.join(upload_dir, unique_name)
-    file_obj.save(file_path)
-
-    return f"/static/uploads/{unique_name}"
-
-
-def _get_post_category(post_obj):
-    if post_obj.subcategory and post_obj.subcategory.category:
-        return post_obj.subcategory.category.name
-    return "General"
-
-
-def _serialize_admin_draft(post_obj):
-    excerpt_source = (post_obj.excerpt or "").strip() or _strip_html(post_obj.content)
-    excerpt = excerpt_source[:180].rstrip()
-    if len(excerpt_source) > 180:
-        excerpt = f"{excerpt}..."
-
-    return {
-        "id": post_obj.id,
-        "title": post_obj.title,
-        "excerpt": excerpt,
-        "category": _get_post_category(post_obj),
-        "cover_image": post_obj.cover_image or "/static/city.jpg",
-        "created_at": _format_post_date(post_obj.created_at),
-        "tags": [tag.name for tag in post_obj.tags],
-    }
-
-
-def _get_or_create_default_category():
-    category_obj = Category.query.order_by(Category.id.asc()).first()
-    if category_obj:
-        return category_obj
-
-    category_obj = Category(name="General")
-    db.session.add(category_obj)
-    db.session.flush()
-    return category_obj
-
-
-def _get_or_create_default_subcategory(category_obj=None):
-    if category_obj is None:
-        category_obj = _get_or_create_default_category()
-
-    subcategory_obj = Subcategory.query.filter_by(category_id=category_obj.id).order_by(Subcategory.id.asc()).first()
-    if subcategory_obj:
-        return subcategory_obj
-
-    subcategory_obj = Subcategory(name="General Updates", category_id=category_obj.id)
-    db.session.add(subcategory_obj)
-    db.session.flush()
-    return subcategory_obj
-
-
-def _load_category_and_tag_choices():
-    categories = Category.query.order_by(Category.name.asc()).all()
-    if not categories:
-        categories = [_get_or_create_default_category()]
-        db.session.commit()
-
-    tags = Tag.query.order_by(Tag.name.asc()).all()
-    return categories, tags
-
-
-def _format_time_only(created_at):
-    if not created_at:
-        return ""
-    return created_at.strftime("%I:%M %p").lstrip("0")
-
-
-def _serialize_dashboard_post(post_obj):
-    normalized_status = (post_obj.status or "draft").strip().lower()
-    if normalized_status == "published":
-        status_label = "published"
-        badge_class = "success"
-    else:
-        status_label = "drafts"
-        badge_class = "warning"
-
-    return {
-        "title": post_obj.title,
-        "time": _format_time_only(post_obj.created_at),
-        "status": status_label,
-        "badge_class": badge_class,
-    }
 
 
 @app.route("/wakadobe/admin/signup", methods=["GET", "POST"])
@@ -264,32 +63,24 @@ def admin_signup():
         first_error = next(iter(form.errors.values()))[0] if form.errors else "Please fix invalid fields and try again."
         return render_template("admin/admin_signup.html", form=form, form_error=first_error, form_success=None)
 
-    # Create new admin
-    hashed_password = generate_password_hash(form.password.data)
-    new_admin = Admin(
-        name=form.name.data.strip(),
-        email=form.email.data.strip().lower(),
-        password=hashed_password,
-        role=form.role.data or "admin"
-    )
-
-    try:
-        db.session.add(new_admin)
-        db.session.commit()
-
-        # Show success message (don't auto-login for security)
-        return render_template("admin/admin_signup.html", form=CreateAdminAccountForm(), form_error=None, form_success="Admin account created successfully! You can now log in.")
-
-    except Exception as e:
-        db.session.rollback()
-        return render_template("admin/admin_signup.html", form=form, form_error="Failed to create admin account. Please try again.", form_success=None)
+    pending_data = {
+        "action": "signup",
+        "name": (form.name.data or "").strip(),
+        "email": (form.email.data or "").strip().lower(),
+        "role": form.role.data or "admin",
+        "password_hash": generate_password_hash(form.password.data),
+    }
+    session[ADMIN_PENDING_OTP_KEY] = pending_data
+    otp_code = generate_admin_otp(pending_data["email"])
+    send_admin_otp_email(pending_data["email"], otp_code)
+    return redirect(url_for("admin_verify", action="signup"))
 
 
 @app.route("/wakadobe/admin/login", methods=["GET", "POST"])
 @limiter.limit(
     "5 per 10 minutes",
     methods=["POST"],
-    error_message="Too many admin login attempts from your IP. Please try again in 10 minutes.",
+    error_message="Too many admin login attempts",
 )
 def admin_login():
     if session.get(ADMIN_SESSION_KEY):
@@ -297,8 +88,9 @@ def admin_login():
 
     form = AdminLoginForm()
     show_created = request.args.get("created") == "1"
+    show_reset_success = request.args.get("reset") == "1"
     if request.method == "GET":
-        return render_template("admin/login.html", form=form, form_error=None, show_created=show_created)
+        return render_template("admin/login.html", form=form, form_error=None, show_created=show_created, show_reset_success=show_reset_success)
 
     if not form.validate_on_submit():
         first_error = next(iter(form.errors.values()))[0] if form.errors else "Please fix invalid fields and try again."
@@ -319,14 +111,18 @@ def admin_login():
             db.session.commit()
             authenticated = True
     if not authenticated:
-        return render_template("admin/login.html", form=form, form_error="Invalid email or password.", show_created=False)
+        return render_template("admin/login.html", form=form, form_error="Invalid email or password.", show_created=False, show_reset_success=False)
 
-    session[ADMIN_SESSION_KEY] = admin_obj.id
-
-    next_url = request.args.get("next", "")
-    if next_url.startswith("/wakadobe/admin"):
-        return redirect(next_url)
-    return redirect(url_for("admin"))
+    pending_data = {
+        "action": "login",
+        "admin_id": admin_obj.id,
+        "email": admin_obj.email,
+        "next_url": request.args.get("next", ""),
+    }
+    session[ADMIN_PENDING_OTP_KEY] = pending_data
+    otp_code = generate_admin_otp(admin_obj.email)
+    send_admin_otp_email(admin_obj.email, otp_code)
+    return redirect(url_for("admin_verify", action="login"))
 
 
 @app.route("/wakadobe/admin")
@@ -391,20 +187,17 @@ def admin_create_account():
         return _render_create_account_page(form, bootstrap_mode=bootstrap_mode)
 
     if form.validate_on_submit():
-        admin_obj = Admin(
-            name=(form.name.data or "").strip(),
-            email=(form.email.data or "").strip().lower(),
-            role="admin" if bootstrap_mode else (form.role.data or "reader").strip().lower(),
-            password=generate_password_hash(form.password.data),
-        )
-        db.session.add(admin_obj)
-        db.session.commit()
-
-        if bootstrap_mode:
-            return redirect(url_for("admin_login", created=1))
-
-        session.pop(ADMIN_SESSION_KEY, None)
-        return redirect(url_for("admin_login"))
+        pending_data = {
+            "action": "create_account",
+            "name": (form.name.data or "").strip(),
+            "email": (form.email.data or "").strip().lower(),
+            "role": "admin" if bootstrap_mode else (form.role.data or "author").strip().lower(),
+            "password_hash": generate_password_hash(form.password.data),
+        }
+        session[ADMIN_PENDING_OTP_KEY] = pending_data
+        otp_code = generate_admin_otp(pending_data["email"])
+        send_admin_otp_email(pending_data["email"], otp_code)
+        return redirect(url_for("admin_verify", action="create_account"))
 
     first_error = next(iter(form.errors.values()))[0] if form.errors else "Please fix invalid fields and try again."
     return _render_create_account_page(form, form_error=first_error, bootstrap_mode=bootstrap_mode)
@@ -466,6 +259,147 @@ def admin_categories():
     if not session.get(ADMIN_SESSION_KEY):
         return redirect(url_for("admin_login", next=request.path))
     return _render_categories_page()
+
+
+@app.route("/wakadobe/admin/reset-password", methods=["GET", "POST"])
+@limiter.limit(
+    "3 per hour",
+    methods=["POST"],
+    error_message="Too many admin reset attempts from your IP. Please try again in an hour.",
+)
+def admin_reset_password():
+    form = AdminResetPasswordRequestForm()
+    if request.method == "GET":
+        return render_template("admin/admin_reset_password.html", form=form, form_error=None, form_success=None)
+
+    if not form.validate_on_submit():
+        first_error = next(iter(form.errors.values()))[0] if form.errors else "Please fix invalid fields and try again."
+        return render_template("admin/admin_reset_password.html", form=form, form_error=first_error, form_success=None)
+
+    email = form.email.data
+    pending_data = {
+        "action": "reset_password",
+        "email": email,
+    }
+    session[ADMIN_PENDING_OTP_KEY] = pending_data
+    admin_obj = Admin.query.filter(func.lower(Admin.email) == email).first()
+    if admin_obj:
+        otp_code = generate_admin_otp(admin_obj.email)
+        send_admin_otp_email(admin_obj.email, otp_code)
+
+    return redirect(url_for("admin_verify", action="reset_password"))
+
+
+@app.route("/wakadobe/admin/verify", methods=["GET", "POST"])
+def admin_verify():
+    pending = session.get(ADMIN_PENDING_OTP_KEY)
+    if not pending:
+        return redirect(url_for("admin_login"))
+
+    action = request.args.get("action") or pending.get("action")
+    otp_form = AdminOTPForm()
+    reset_form = AdminResetPasswordForm() if action == "reset_password" else None
+
+    if request.method == "GET":
+        return render_template(
+            "admin/verify_admin.html",
+            action=action,
+            otp_form=otp_form,
+            reset_form=reset_form,
+            form_error=None,
+            message="A verification code was sent to the email address provided.",
+        )
+
+    if not otp_form.validate_on_submit():
+        first_error = next(iter(otp_form.errors.values()))[0] if otp_form.errors else "Please enter the verification code."
+        return render_template(
+            "admin/verify_admin.html",
+            action=action,
+            otp_form=otp_form,
+            reset_form=reset_form,
+            form_error=first_error,
+            message=None,
+        )
+
+    email = (pending.get("email") or "").strip().lower()
+    if not verify_admin_otp(email, otp_form.otp_code.data):
+        return render_template(
+            "admin/verify_admin.html",
+            action=action,
+            otp_form=otp_form,
+            reset_form=reset_form,
+            form_error="Invalid or expired verification code.",
+            message=None,
+        )
+
+    if action in {"signup", "create_account"}:
+        existing = Admin.query.filter(func.lower(Admin.email) == email).first()
+        if existing:
+            session.pop(ADMIN_PENDING_OTP_KEY, None)
+            return render_template(
+                "admin/verify_admin.html",
+                action=action,
+                otp_form=otp_form,
+                reset_form=reset_form,
+                form_error="An admin account with that email already exists.",
+                message=None,
+            )
+
+        name = pending.get("name")
+        role = pending.get("role", "admin")
+        password_hash = pending.get("password_hash")
+        if not name or not password_hash:
+            session.pop(ADMIN_PENDING_OTP_KEY, None)
+            return redirect(url_for("admin_login"))
+
+        admin_obj = Admin(name=name, email=email, role=role, password=password_hash)
+        db.session.add(admin_obj)
+        db.session.commit()
+        session.pop(ADMIN_PENDING_OTP_KEY, None)
+
+        if action == "signup":
+            return redirect(url_for("admin_login", created=1))
+
+        return render_template(
+            "admin/create_account.html",
+            form=CreateAdminAccountForm(),
+            admins=[_serialize_admin_user(item) for item in Admin.query.order_by(Admin.created_at.desc(), Admin.id.desc()).all()],
+            form_error=None,
+            form_success="Admin account created successfully.",
+            bootstrap_mode=False,
+        )
+
+    if action == "login":
+        session[ADMIN_SESSION_KEY] = pending.get("admin_id")
+        next_url = pending.get("next_url", "")
+        session.pop(ADMIN_PENDING_OTP_KEY, None)
+        if next_url.startswith("/wakadobe/admin"):
+            return redirect(next_url)
+        return redirect(url_for("admin"))
+
+    if action == "reset_password" and reset_form:
+        if not reset_form.validate_on_submit():
+            first_error = next(iter(reset_form.errors.values()))[0] if reset_form.errors else "Please correct the reset information."
+            return render_template(
+                "admin/verify_admin.html",
+                action=action,
+                otp_form=otp_form,
+                reset_form=reset_form,
+                form_error=first_error,
+                message=None,
+            )
+
+        admin_obj = Admin.query.filter(func.lower(Admin.email) == email).first()
+        if admin_obj:
+            admin_obj.password = generate_password_hash(reset_form.new_password.data)
+            db.session.add(admin_obj)
+            db.session.commit()
+
+        session.pop(ADMIN_PENDING_OTP_KEY, None)
+        return redirect(url_for("admin_login", reset=1))
+
+    session.pop(ADMIN_PENDING_OTP_KEY, None)
+    return redirect(url_for("admin_login"))
 
 
 @app.route("/wakadobe/admin/categories/create-category", methods=["POST"])
@@ -757,41 +691,30 @@ def create_post():
     post_status = (form.post_status.data or "published").strip().lower()
     editing_draft_id = form.draft_id.data
 
-    cover_path = _save_uploaded_image(form.cover_image.data)
+    cover_path = _upload_cover_image(form.cover_image.data)
 
     valid_status = "draft" if post_status == "draft" else "published"
 
-    admin_obj = Admin.query.get(admin_id)
-
-    category_obj = None
-    if category_id:
-        category_obj = Category.query.get(category_id)
+    category_obj = Category.query.get(category_id) if category_id else None
     if category_obj is None:
         category_obj = _get_or_create_default_category()
 
-    subcategory_obj = None
-    if form.subcategory_id.data:
-        subcategory_obj = Subcategory.query.get(form.subcategory_id.data)
-        if subcategory_obj is not None and subcategory_obj.category_id != category_obj.id:
-            subcategory_obj = None
-    if subcategory_obj is None:
+    subcat_map = {subcat.id: subcat for subcat in subcategories}
+    chosen_subcat = subcat_map.get(form.subcategory_id.data)
+    if chosen_subcat and chosen_subcat.category_id == category_obj.id:
+        subcategory_obj = chosen_subcat
+    else:
         subcategory_obj = _get_or_create_default_subcategory(category_obj)
 
-    tags = []
-    if selected_tag_ids:
-        tags = Tag.query.filter(Tag.id.in_(selected_tag_ids)).all()
-
-    if new_tags:
-        for clean_name in new_tags:
-            existing = Tag.query.filter_by(name=clean_name).first()
-            if existing:
-                if existing not in tags:
-                    tags.append(existing)
-                continue
-            tag_obj = Tag(name=clean_name)
-            db.session.add(tag_obj)
+    post_tags = Tag.query.filter(Tag.id.in_(selected_tag_ids)).all() if selected_tag_ids else []
+    for clean_name in new_tags:
+        existing = Tag.query.filter_by(name=clean_name).first()
+        if not existing:
+            existing = Tag(name=clean_name)
+            db.session.add(existing)
             db.session.flush()
-            tags.append(tag_obj)
+        if existing not in post_tags:
+            post_tags.append(existing)
 
     post_obj = None
     if editing_draft_id and str(editing_draft_id).isdigit():
@@ -799,14 +722,15 @@ def create_post():
 
     if post_obj is None:
         post_obj = Post(
+            admin_id=admin_id,
             title=title,
             excerpt=excerpt,
             cover_image=cover_path,
             content=content_html,
-            admin_id=admin_obj.id,
             subcategory_id=subcategory_obj.id,
             status=valid_status,
         )
+        db.session.add(post_obj)
     else:
         post_obj.title = title
         post_obj.excerpt = excerpt
@@ -815,12 +739,8 @@ def create_post():
         post_obj.status = valid_status
         if cover_path:
             post_obj.cover_image = cover_path
-        post_obj.tags.clear()
 
-    for tag in tags:
-        post_obj.tags.append(tag)
-
-    db.session.add(post_obj)
+    post_obj.tags = post_tags
     db.session.commit()
 
     return redirect(url_for("admin"))

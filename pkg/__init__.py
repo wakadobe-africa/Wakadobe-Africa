@@ -1,4 +1,5 @@
 from flask import Flask, session
+from flask_mail import Mail
 from flask_wtf import CSRFProtect
 from flask_migrate import Migrate
 from pkg.config import TestConfig,LiveConfig
@@ -7,6 +8,8 @@ from pkg.limiter import limiter
 from pkg.route_constants import READER_SESSION_KEY
 
 csrf= CSRFProtect()
+mail = Mail()
+
 def create_app():
     from pkg.blogmodel import db
     # from pkg.admin import adminobj
@@ -24,6 +27,7 @@ def create_app():
     db.init_app(app)
     migrate = Migrate(app,db)
     csrf.init_app(app)
+    mail.init_app(app)
     limiter.init_app(app)
     # csrf.exempt(apiobj)
     return app

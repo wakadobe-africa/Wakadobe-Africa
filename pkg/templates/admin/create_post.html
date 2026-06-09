@@ -311,7 +311,7 @@
                 fragments.push(`<img src="${coverUrl}" alt="Cover image preview">`);
             }
 
-            if (editorHtml && editorHtml !== '<p><br></p>') {
+            if (editorHtml && editorHtml !== '<p></p>') {
                 fragments.push(editorHtml);
             }
 
@@ -321,7 +321,7 @@
                 previewBox.innerHTML = fragments.join('');
             }
 
-            contentHtmlField.value = editorHtml === '<p><br></p>' ? '' : editorHtml;
+            contentHtmlField.value = editorHtml === '<p></p>' ? '' : editorHtml;
         }
 
         titleInput.addEventListener('input', refreshPreview);

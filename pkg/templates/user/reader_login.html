@@ -6,7 +6,8 @@
 <main class="container py-5">
     <div class="row justify-content-center">
         <div class="col-12 col-md-7 col-lg-5">
-      <section class="card shadow-sm border-0" id="loginCard">
+            <!-- Login Card -->
+            <section class="card shadow-sm border-0" id="loginCard">
                 <div class="card-body p-4 p-lg-5">
                     <h1 class="h4 mb-2">Welcome back!</h1>
                     <p class="text-muted mb-4">Sign in to your reader account.</p>
@@ -14,9 +15,12 @@
                     {% if show_created %}
                     <div class="alert alert-success" role="alert">Account created successfully. Please login.</div>
                     {% endif %}
-          {% if show_reset_success %}
-          <div class="alert alert-success" role="alert">Password reset successful. Please login with your new password.</div>
-          {% endif %}
+                    {% if show_reset_sent %}
+                    <div class="alert alert-info" role="alert">Password reset link sent to your email. Check your inbox.</div>
+                    {% endif %}
+                    {% if show_reset_success %}
+                    <div class="alert alert-success" role="alert">Password reset successfully. Please login with your new password.</div>
+                    {% endif %}
                     {% if form_error %}
                     <div class="alert alert-danger" role="alert">{{ form_error }}</div>
                     {% endif %}
@@ -52,36 +56,32 @@
                     </p>
                 </div>
             </section>
-            <section class="card shadow-sm border-0 d-none mt-3" id="resetCard">
-                <div class="card-body p-4 p-lg-5">
-                    <h2 class="h4 mb-2">Reset Password</h2>
-                    <p class="text-muted mb-4">Enter your registered email and choose a new password.</p>
 
-                    <form id="resetForm" method="post" action="{{ url_for('reader_reset_password') }}">
-                        {{ resetform.hidden_tag() }}
+            <!-- Reset Email Card (Hidden) -->
+            <section class="card shadow-sm border-0 d-none" id="resetCard">
+                <div class="card-body p-4 p-lg-5">
+                    <h1 class="h4 mb-2">Reset Password</h1>
+                    <p class="text-muted mb-4">Enter your registered email. We'll send you a link to reset your password.</p>
+
+                    <div id="resetError" class="alert alert-danger d-none" role="alert"></div>
+
+                    <form id="resetForm" method="post" action="{{ url_for('reset_verify_email') }}">
+                        {{ resetform.csrf_token }}
 
                         <div class="mb-3">
                             {{ resetform.email.label(class="form-label") }}
                             {{ resetform.email(class="form-control", id="resetEmail", placeholder="Your registered email") }}
+                            {% if resetform.email.errors %}
+                            <div class="text-danger small mt-1">{{ resetform.email.errors[0] }}</div>
+                            {% endif %}
                         </div>
 
-                        <div class="mb-3">
-                            {{ resetform.new_password.label(class="form-label") }}
-                            {{ resetform.new_password(class="form-control", id="resetNewPassword", placeholder="New password") }}
-                        </div>
-
-                        <div class="mb-3">
-                            {{ resetform.confirm_new_password.label(class="form-label") }}
-                            {{ resetform.confirm_new_password(class="form-control", id="resetConfirmNewPassword", placeholder="Confirm new password") }}
-                        </div>
-
-                        <small id="resetError" class="text-danger d-none mb-3 d-block"></small>
-
-                        <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary" id="resetSubmitBtn">Reset Password</button>
-                            <button type="button" class="btn btn-outline-secondary" id="backToLoginBtn">Back to Login</button>
-                        </div>
+                        <button type="submit" id="resetSubmitBtn" class="btn btn-primary w-100">Continue</button>
                     </form>
+
+                    <p class="small text-muted mt-3 mb-0">
+                        <a href="#" id="backToLoginBtn" class="text-decoration-none">Back to login</a>
+                    </p>
                 </div>
             </section>
         </div>
@@ -100,12 +100,8 @@
     const resetError = document.querySelector("#resetError");
 
     function showLoginCard() {
-        if (loginCard) {
-            loginCard.classList.remove("d-none");
-        }
-        if (resetCard) {
-            resetCard.classList.add("d-none");
-        }
+        if (loginCard) loginCard.classList.remove("d-none");
+        if (resetCard) resetCard.classList.add("d-none");
         if (resetError) {
             resetError.classList.add("d-none");
             resetError.textContent = "";
@@ -113,20 +109,18 @@
     }
 
     function showResetCard() {
-        if (loginCard) {
-            loginCard.classList.add("d-none");
-        }
-        if (resetCard) {
-            resetCard.classList.remove("d-none");
-        }
+        if (loginCard) loginCard.classList.add("d-none");
+        if (resetCard) resetCard.classList.remove("d-none");
         if (resetError) {
             resetError.classList.add("d-none");
             resetError.textContent = "";
         }
     }
 
+    // Initial state: show login
     showLoginCard();
 
+    // Show reset form when user clicks "Reset password"
     if (showResetBtn) {
         showResetBtn.addEventListener("click", function (event) {
             event.preventDefault();
@@ -134,52 +128,20 @@
         });
     }
 
+    // Back to login
     if (backToLoginBtn) {
-        backToLoginBtn.addEventListener("click", function () {
+        backToLoginBtn.addEventListener("click", function (event) {
+            event.preventDefault();
             showLoginCard();
         });
     }
 
+    // Handle reset form submission - standard form POST
     if (resetForm) {
-        resetForm.addEventListener("submit", async function (event) {
-            event.preventDefault();
-
-            if (resetError) {
-                resetError.classList.add("d-none");
-                resetError.textContent = "";
-            }
-
+        resetForm.addEventListener("submit", function (event) {
             if (resetSubmitBtn) {
                 resetSubmitBtn.disabled = true;
-                resetSubmitBtn.textContent = "Resetting...";
-            }
-
-            try {
-                const response = await fetch(resetForm.action, {
-                    method: "POST",
-                    headers: {
-                        "X-Requested-With": "XMLHttpRequest"
-                    },
-                    body: new FormData(resetForm)
-                });
-
-                const payload = await response.json();
-
-                if (!response.ok || !payload.success) {
-                    throw new Error(payload.message || "Unable to reset password.");
-                }
-
-                window.location.href = payload.redirect;
-            } catch (error) {
-                if (resetError) {
-                    resetError.classList.remove("d-none");
-                    resetError.textContent = error.message || "Request failed. Please try again.";
-                }
-            } finally {
-                if (resetSubmitBtn) {
-                    resetSubmitBtn.disabled = false;
-                    resetSubmitBtn.textContent = "Reset Password";
-                }
+                resetSubmitBtn.textContent = "Sending...";
             }
         });
     }

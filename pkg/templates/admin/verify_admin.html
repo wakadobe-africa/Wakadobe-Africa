@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Verification</title>
+    <link href="{{ url_for('static', filename='bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+</head>
+<body>
+<body class="admin-login-body">
+<section class="login-card">
+    <div class="d-flex align-items-center gap-2 mb-3">
+        <span class="brand-dot">WD</span>
+        <h1 class="h4 mb-0">Admin Verification</h1>
+    </div>
+
+    <p class="helper-text mb-3">
+        {% if action == 'signup' %}
+        Enter the verification code sent to your email to complete signing up for a new admin account.
+        {% elif action == 'create_account' %}
+        Enter the verification code sent to your email to complete the admin account creation.
+        {% elif action == 'login' %}
+        Enter the verification code sent to your email to finish login.
+        {% elif action == 'reset_password' %}
+        Enter the verification code sent to your email, then choose a new password.
+        {% else %}
+        Enter the verification code sent to your email to continue.
+        {% endif %}
+    </p>
+
+    {% if message %}
+    <div class="alert alert-info" role="alert">{{ message }}</div>
+    {% endif %}
+
+    {% if form_error %}
+    <div class="alert alert-danger" role="alert">{{ form_error }}</div>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('admin_verify', action=action) }}">
+        {{ otp_form.csrf_token }}
+
+        <div class="mb-3">
+            <label class="form-label" for="otp_code">Verification Code</label>
+            <input id="otp_code" type="text" name="otp_code" class="form-control" value="{{ otp_form.otp_code.data or '' }}" required>
+            {% if otp_form.otp_code.errors %}
+            <div class="text-danger small mt-1">{{ otp_form.otp_code.errors[0] }}</div>
+            {% endif %}
+        </div>
+
+        {% if reset_form %}
+        <div class="mb-3">
+            <label class="form-label" for="new_password">New Password</label>
+            <input id="new_password" type="password" name="new_password" class="form-control" required>
+            {% if reset_form.new_password.errors %}
+            <div class="text-danger small mt-1">{{ reset_form.new_password.errors[0] }}</div>
+            {% endif %}
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="confirm_new_password">Confirm New Password</label>
+            <input id="confirm_new_password" type="password" name="confirm_new_password" class="form-control" required>
+            {% if reset_form.confirm_new_password.errors %}
+            <div class="text-danger small mt-1">{{ reset_form.confirm_new_password.errors[0] }}</div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <button type="submit" class="btn btn-primary w-100">Verify and Continue</button>
+    </form>
+
+    <div class="text-center mt-3">
+        <p class="mb-0"><a href="{{ url_for('admin_login') }}">Back to login</a></p>
+    </div>
+</section>
+
+<script src="{{ url_for('static', filename='bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+</body>
+</html>

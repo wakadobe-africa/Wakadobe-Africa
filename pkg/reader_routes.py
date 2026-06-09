@@ -1,53 +1,19 @@
-from flask import abort, flash, jsonify, redirect, render_template, request, session, url_for
+from flask import abort, flash, redirect, render_template, request, session, url_for
 from sqlalchemy import func
 from werkzeug.security import check_password_hash, generate_password_hash
-
 from pkg import app
 from pkg.blogmodel import Category, Comment, Post, Reader, Subcategory, db
-from pkg.forms import ReaderLoginForm, ReaderResetPasswordForm, ReaderSignupForm, _strip_html
+from pkg.token import generate_email_address_verify, send_email, verify_signup_token
+from pkg.forms import PasswordResetEmailForm, ReaderLoginForm, ReaderResetPasswordForm, ReaderSignupForm, _strip_html
+from pkg.helpers import (
+    _format_post_date,
+    _get_post_category,
+    _serialize_post_card,
+    _serialize_subcategory_option,
+    
+)
 from pkg.limiter import limiter
 from pkg.route_constants import READER_SESSION_KEY
-
-
-def _format_post_date(created_at):
-    if not created_at:
-        return ""
-    return created_at.strftime("%B %d, %Y").replace(" 0", " ")
-
-
-def _get_post_category(post_obj):
-    if post_obj.subcategory and post_obj.subcategory.category:
-        return post_obj.subcategory.category.name
-    return "General"
-
-
-def _serialize_post_card(post_obj):
-    excerpt_source = (post_obj.excerpt or "").strip() or _strip_html(post_obj.content)
-    excerpt = excerpt_source[:180].rstrip()
-    if len(excerpt_source) > 180:
-        excerpt = f"{excerpt}..."
-
-    return {
-        "id": post_obj.id,
-        "title": post_obj.title,
-        "author": post_obj.author.name if post_obj.author else "Wakadobe",
-        "date": _format_post_date(post_obj.created_at),
-        "category": _get_post_category(post_obj),
-        "image": post_obj.cover_image or "/static/city.jpg",
-        "excerpt": excerpt,
-    }
-
-
-def _serialize_subcategory_option(subcategory_obj):
-    if subcategory_obj.category:
-        label = f"{subcategory_obj.category.name} - {subcategory_obj.name}"
-    else:
-        label = subcategory_obj.name
-    return {
-        "id": subcategory_obj.id,
-        "name": subcategory_obj.name,
-        "label": label,
-    }
 
 
 @app.route("/")
@@ -100,11 +66,14 @@ def subcategory_posts(subcategory_id):
     }
 
 
-@app.route("/wakadobe/posts/<int:post_id>")
-def post_details(post_id):
+@app.route("/wakadobe/posts/<int:post_id>", defaults={"slug": None})
+@app.route("/wakadobe/posts/<int:post_id>/<slug>")
+def post_details(post_id, slug=None):
     post_obj = Post.query.filter_by(id=post_id, status="published").first()
     if post_obj is None:
         abort(404)
+    if slug is None or slug != post_obj.slug:
+        return redirect(url_for("post_details", post_id=post_obj.id, slug=post_obj.slug), 301)
 
     related_query = Post.query.filter(Post.id != post_obj.id, Post.status == "published")
     if post_obj.subcategory_id:
@@ -115,16 +84,24 @@ def post_details(post_id):
         for item in related_query.order_by(Post.created_at.desc()).limit(3).all()
     ]
 
-    approved_comments = Comment.query.filter_by(post_id=post_id, is_approved=True).order_by(Comment.created_at.desc()).all()
-    comments_payload = [
+    approved_comments = Comment.query.filter_by(post_id=post_id, is_approved=True).order_by(Comment.created_at.asc()).all()
+    comment_records = [
         {
             "id": comment.id,
+            "parent_id": comment.parent_id,
             "reader_name": comment.reader.name if comment.reader else "Anonymous",
             "content": comment.content,
             "date": _format_post_date(comment.created_at),
         }
         for comment in approved_comments
     ]
+
+    comment_tree = {}
+    for comment in comment_records:
+        comment_tree.setdefault(comment["parent_id"], []).append(comment)
+
+    comments_payload = comment_tree.get(None, [])
+    comment_count = len(comment_records)
 
     post_payload = {
         "id": post_obj.id,
@@ -134,6 +111,7 @@ def post_details(post_id):
         "category": _get_post_category(post_obj),
         "image": post_obj.cover_image or "/static/city.jpg",
         "content_html": post_obj.content or "",
+        "slug": post_obj.slug,
         "tags": [tag.name for tag in post_obj.tags],
     }
     reader_id = session.get(READER_SESSION_KEY)
@@ -143,15 +121,19 @@ def post_details(post_id):
         post=post_payload,
         related_posts=related_posts,
         comments=comments_payload,
+        comment_tree=comment_tree,
+        comment_count=comment_count,
         current_reader=current_reader,
     )
 
 
-@app.route("/wakadobe/posts/<int:post_id>/comment", methods=["POST"])
-def add_comment(post_id):
+@app.route("/wakadobe/posts/<int:post_id>/<slug>/comment", methods=["POST"])
+def add_comment(post_id, slug):
     post_obj = Post.query.filter_by(id=post_id, status="published").first()
     if post_obj is None:
         abort(404)
+    if slug != post_obj.slug:
+        return redirect(url_for("post_details", post_id=post_obj.id, slug=post_obj.slug), 301)
 
     reader_id = session.get(READER_SESSION_KEY)
     if not reader_id:
@@ -160,35 +142,66 @@ def add_comment(post_id):
 
     comment_text = request.form.get("comment", "").strip()
     if not comment_text:
-        return redirect(url_for("post_details", post_id=post_id))
+        return redirect(url_for("post_details", post_id=post_id, slug=post_obj.slug))
+
+    parent_id = request.form.get("parent_id")
+    if parent_id:
+        try:
+            parent_id = int(parent_id)
+        except (TypeError, ValueError):
+            parent_id = None
+        else:
+            parent_comment = Comment.query.filter_by(id=parent_id, post_id=post_id, is_approved=True).first()
+            if parent_comment is None:
+                parent_id = None
+    else:
+        parent_id = None
 
     new_comment = Comment(
         content=comment_text,
         post_id=post_id,
         reader_id=current_reader.id,
+        parent_id=parent_id,
         is_approved=True,
     )
     db.session.add(new_comment)
     db.session.commit()
 
-    return redirect(url_for("post_details", post_id=post_id))
+    return redirect(url_for("post_details", post_id=post_id, slug=post_obj.slug) + f"#comment-{new_comment.id}")
 
 
 @app.route("/wakadobe/about")
 def about():
     return render_template("user/about.html")
 
+@app.route("/wakadobe/readers/verify-signup-email")
+def verify_signup_email():
+    token = request.args.get('token')
+    email = verify_signup_token(token, salt="email-verify")
+    if email is None:
+        flash("Invalid or expired verification link.", "danger")
+        return redirect(url_for("reader_signup"))
+    
+    reader_obj = Reader.query.filter(func.lower(Reader.email) == email.lower()).first()
+    if reader_obj is None:
+        flash("No account found for this email. Please sign up.", "danger")
+        return redirect(url_for("reader_signup"))
+    reader_obj.is_email_verified = True
+    db.session.add(reader_obj)
+    db.session.commit()
+    flash("Email verified successfully! You may continue browsing.", "success")
+    return redirect(url_for("wakadobe_index"))
+
 
 @app.route("/wakadobe/readers/sign-up", methods=["GET", "POST"])
 def reader_signup():
-    abort(404)  # Disable public sign-up by returning 404
+    # abort(404)  # Disable public sign-up by returning 404
     if session.get(READER_SESSION_KEY):
         return redirect(url_for("wakadobe_index"))
     
     form = ReaderSignupForm()
     if request.method == "GET":
         return render_template("user/reader_signup.html", form=form, form_error=None)
-
     if not form.validate_on_submit():
         first_error = next(iter(form.errors.values()))[0] if form.errors else "Please fill the required fields and try again."
         return render_template("user/reader_signup.html", form=form, form_error=first_error)
@@ -200,6 +213,12 @@ def reader_signup():
     )
     db.session.add(reader_obj)
     db.session.commit()
+    verification_url = url_for(
+    "verify_signup_email", 
+    token=generate_email_address_verify(reader_obj.email, salt="email-verify"), 
+    _external=True
+    )
+    send_email(reader_obj.email, verification_url)
     flash("Account created successfully! Please log in.")
     return redirect(url_for("reader_login", created=1))
 
@@ -211,14 +230,15 @@ def reader_signup():
     error_message="Too many login attempts. Please try again in 10 minutes.",
 )
 def reader_login():
-    abort(404)  # Disable public login by returning 404
+    # abort(404)  # Disable public login by returning 404
     if session.get(READER_SESSION_KEY):
         return redirect(url_for("wakadobe_index"))
-
+    
     form = ReaderLoginForm()
-    resetform = ReaderResetPasswordForm()
+    resetform = PasswordResetEmailForm()
     show_created = request.args.get("created") == "1"
-    show_reset_success = request.args.get("reset") == "1"
+    show_reset_sent = request.args.get("reset_sent") == "1"
+    show_reset_success = request.args.get("reset_done") == "1"
 
     if request.method == "GET":
         return render_template(
@@ -227,17 +247,19 @@ def reader_login():
             resetform=resetform,
             form_error=None,
             show_created=show_created,
+            show_reset_sent=show_reset_sent,
             show_reset_success=show_reset_success,
         )
 
     if not form.validate_on_submit():
-        first_error = next(iter(form.errors.values()))[0] if form.errors else "Please fix the errors and try again."
+        first_error = next(iter(form.errors.values()))[0] if form.errors else "Invalid email or password."
         return render_template(
             "user/reader_login.html",
             form=form,
             resetform=resetform,
             form_error=first_error,
             show_created=False,
+            show_reset_sent=False,
             show_reset_success=False,
         )
 
@@ -262,30 +284,88 @@ def reader_login():
             resetform=resetform,
             form_error="Invalid email or password.",
             show_created=False,
+            show_reset_sent=False,
             show_reset_success=False,
         )
 
     session[READER_SESSION_KEY] = reader_obj.id
     return redirect(url_for("wakadobe_index"))
 
-
-@app.route("/wakadobe/readers/reset-password", methods=["POST"])
+@app.route("/wakadobe/readers/reset-password", methods=["GET", "POST"])
 def reader_reset_password():
+    """Handle password reset with token - shows password reset form and validates new password"""
     if session.get(READER_SESSION_KEY):
-        return jsonify({"success": False, "message": "Log out before resetting the password."}), 400
+        return redirect(url_for("wakadobe_index"))
 
-    resetform = ReaderResetPasswordForm()
-    if not resetform.validate_on_submit():
-        first_error = next(iter(resetform.errors.values()))[0] if resetform.errors else "Please fix the errors and try again."
-        return jsonify({"success": False, "message": first_error}), 400
+    # Optimization: Extract and verify the token once for BOTH GET and POST
+    token = request.args.get("token")
+    if not token:
+        flash("Password reset link is invalid.", "danger")
+        return redirect(url_for("reader_login"))
 
-    reader_obj = Reader.query.filter(func.lower(Reader.email) == resetform.email.data).first()
+    email = verify_signup_token(token, salt="password-reset")
+    if email is None:
+        flash("Invalid or expired password reset link.", "danger")
+        return redirect(url_for("reader_login"))
+
+    form = ReaderResetPasswordForm()
+
+    if request.method == "GET":
+        return render_template(
+            "user/reset_password.html",
+            resetform=form,
+            form_error=None,
+            token=token,
+        )
+
+    # Reset password submission and validation flow
+    if not form.validate_on_submit():
+        first_error = next(iter(form.errors.values()))[0] if form.errors else "Invalid input. Please try again."
+        return render_template(
+            "user/reset_password.html",
+            resetform=form,
+            form_error=first_error,
+            token=token,
+        )
+
+    reader_obj = Reader.query.filter(func.lower(Reader.email) == email.lower()).first()
     if reader_obj is None:
-        return jsonify({"success": False, "message": "No reader account exists with that email."}), 404
+        flash("No account found for this email. Please sign up.", "danger")
+        return redirect(url_for("reader_signup"))
 
-    reader_obj.password = generate_password_hash(resetform.new_password.data)
-    db.session.commit()
-    return jsonify({"success": True, "redirect": url_for("reader_login", reset=1)})
+    # Security Fix: Use your model's bcrypt abstraction method instead of mixing tools
+    reader_obj.password = generate_password_hash(form.new_password.data)
+    db.session.add(reader_obj)  
+    db.session.commit() 
+    
+    flash("Password reset successfully! Please log in.", "success")
+    return redirect(url_for("reader_login", reset_done=1))
+
+
+@app.route("/wakadobe/readers/verify-email", methods=["POST"])
+def reset_verify_email():
+    """Password reset email verification flow - sends reset link to email"""
+    if session.get(READER_SESSION_KEY):
+        return redirect(url_for("wakadobe_index"))
+
+    form = PasswordResetEmailForm()
+    if not form.validate_on_submit():
+        first_error = next(iter(form.errors.values()))[0] if form.errors else "Please provide a valid email address."
+        flash(first_error, "danger")
+        return redirect(url_for("reader_login"))
+
+    # Bug Fix: Ensure input email is lowered to match database query logic
+    email = form.email.data.lower()
+    reader_obj = Reader.query.filter(func.lower(Reader.email) == email).first()
+    
+    # Excellent practice: Keeping this logic uniform prevents database scraping
+    if reader_obj:
+        token = generate_email_address_verify(reader_obj.email, salt="password-reset")
+        reset_url = url_for("reader_reset_password", token=token, _external=True)
+        send_email(reader_obj.email, reset_url)
+    
+    flash("Password reset link has been sent to your email.", "info")
+    return redirect(url_for("reader_login", reset_sent=1))
 
 
 @app.route("/wakadobe/readers/log-out")
