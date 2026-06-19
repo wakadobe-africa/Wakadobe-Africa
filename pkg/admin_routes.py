@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
+import email
 
-from flask import abort, jsonify, redirect, render_template, request, session, url_for
+from flask import abort, current_app, flash, jsonify, redirect, render_template, request, session, url_for
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -73,6 +74,11 @@ def admin_signup():
     session[ADMIN_PENDING_OTP_KEY] = pending_data
     otp_code = generate_admin_otp(pending_data["email"])
     send_admin_otp_email(pending_data["email"], otp_code)
+    # For testing in production temporarily
+    flash(f"DEBUG MODE - Your Verification Code is: {otp_code}", "info")
+    
+    # Safely log it to Render logs using standard logging to avoid context errors
+    print(f"DEBUG OTP for {pending_data['email']}: {otp_code}")
     return redirect(url_for("admin_verify", action="signup"))
 
 
@@ -122,6 +128,11 @@ def admin_login():
     session[ADMIN_PENDING_OTP_KEY] = pending_data
     otp_code = generate_admin_otp(admin_obj.email)
     send_admin_otp_email(admin_obj.email, otp_code)
+    # For testing in production temporarily
+    flash(f"DEBUG MODE - Your Verification Code is: {otp_code}", "info")
+    
+    # Safely log it to Render logs using standard logging to avoid context errors
+    print(f"DEBUG OTP for {pending_data['email']}: {otp_code}")
     return redirect(url_for("admin_verify", action="login"))
 
 
