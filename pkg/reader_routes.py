@@ -205,7 +205,7 @@ def reader_signup():
     if not form.validate_on_submit():
         first_error = next(iter(form.errors.values()))[0] if form.errors else "Please fill the required fields and try again."
         return render_template("user/reader_signup.html", form=form, form_error=first_error)
-
+    
     reader_obj = Reader(
         name=(form.name.data or "").strip(),
         email=(form.email.data or "").strip().lower(),

@@ -2,6 +2,7 @@ import base64
 import hashlib
 import hmac
 import pyotp
+import threading
 from flask_mail import Message
 from itsdangerous import URLSafeTimedSerializer
 from flask import current_app
@@ -44,6 +45,20 @@ def verify_signup_token(token, salt):
         return None
 
 
+def _send_message_in_thread(msg):
+    """Helper to send email in background thread."""
+    try:
+        import socket
+        # Set socket timeout to prevent indefinite hangs
+        socket.setdefaulttimeout(5)
+        mail.send(msg)
+    except Exception as e:
+        current_app.logger.error("Failed to send email: %s", str(e))
+    finally:
+        import socket
+        socket.setdefaulttimeout(None)
+
+
 def send_email(to_email, url):
     msg = Message(
         subject="Verify your email address",
@@ -51,7 +66,8 @@ def send_email(to_email, url):
         recipients=[to_email],
     )
     msg.body = f"Please click the following link to verify your email address: {url}"
-    mail.send(msg)
+    thread = threading.Thread(target=_send_message_in_thread, args=(msg,), daemon=True)
+    thread.start()
 
 
 def send_admin_otp_email(to_email, otp_code):
@@ -65,4 +81,5 @@ def send_admin_otp_email(to_email, otp_code):
         f"{otp_code}\n\n"
         "This code expires in 5 minutes. If you did not request this, please ignore this message."
     )
-    mail.send(msg)
+    thread = threading.Thread(target=_send_message_in_thread, args=(msg,), daemon=True)
+    thread.start()

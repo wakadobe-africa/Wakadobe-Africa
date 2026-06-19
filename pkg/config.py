@@ -7,6 +7,13 @@ class General(object):
     APP_NAME='wakadobeblog'
     SECRET_KEY = os.getenv('SECRET_KEY')
     SQLALCHEMY_DATABASE_URI = os.getenv('SQLALCHEMY_DATABASE_URI')
+    
+    # Validate required variables
+    if not SQLALCHEMY_DATABASE_URI:
+        raise RuntimeError(
+            "SQLALCHEMY_DATABASE_URI environment variable is not set. "
+            "Please set it in your environment or .env file."
+        )
     DEBUG = True
     TESTING = False
     SQLALCHEMY_TRACK_MODIFICATION=False
@@ -23,6 +30,7 @@ class General(object):
     MAIL_USE_TLS = os.getenv('MAIL_USE_TLS', 'True').strip().lower() in ('1', 'true', 'yes')
     MAIL_USERNAME = os.getenv('MAIL_USERNAME')
     MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
+    MAIL_TIMEOUT = 5  # 5-second timeout for SMTP connections
     CLOUDINARY_URL = os.getenv('CLOUDINARY_URL')
     CLOUDINARY_FOLDER = os.getenv('CLOUDINARY_FOLDER', 'wakadobe/cover_images')
     OTP_SECRET = os.getenv('OTP_SECRET', SECRET_KEY)
