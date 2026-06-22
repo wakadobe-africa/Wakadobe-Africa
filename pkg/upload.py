@@ -1,4 +1,5 @@
 import os
+from werkzeug.utils import secure_filename
 import logging
 import cloudinary
 from cloudinary.uploader import upload as cloudinary_upload

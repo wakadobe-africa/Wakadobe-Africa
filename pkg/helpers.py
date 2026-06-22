@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 
 from flask import current_app, render_template
 from sqlalchemy import func
-from werkzeug.utils import secure_filename
+
 
 from pkg import app
 from pkg.blogmodel import Admin, Category, Comment, Post, Subcategory, Tag, db
