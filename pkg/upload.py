@@ -1,9 +1,9 @@
 import os
 from werkzeug.utils import secure_filename
+from flask import current_app
 import logging
 import cloudinary
 from cloudinary.uploader import upload as cloudinary_upload
-import app
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ def _save_uploaded_image(file_obj):
     if not filename or not _allowed_image(filename):
         return None
 
-    upload_dir = os.path.join(app.root_path, "static", "uploads")
+    upload_dir = os.path.join(current_app.root_path, "static", "uploads")
     os.makedirs(upload_dir, exist_ok=True)
 
     timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S%f")
