@@ -71,5 +71,5 @@ def upload_image_to_cloudinary(file_obj, folder=None):
         # Reset stream pointer again before saving locally so the file isn't empty
         if hasattr(file_obj, "seek"):
             file_obj.seek(0)
-        return _save_uploaded_image(file.obj)
+        return _save_uploaded_image(file_obj)
 
