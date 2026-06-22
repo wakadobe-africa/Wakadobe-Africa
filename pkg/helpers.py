@@ -1,6 +1,6 @@
 import os
 import re
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from flask import current_app, render_template
 from sqlalchemy import func
