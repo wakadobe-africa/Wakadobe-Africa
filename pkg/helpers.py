@@ -134,41 +134,24 @@ def _render_categories_page(form_error=None, form_success=None):
     )
 
 
-def _allowed_image(filename):
-    if "." not in filename:
-        return False
-    ext = filename.rsplit(".", 1)[1].lower()
-    return ext in {"jpg", "jpeg", "png", "gif", "webp"}
-
-
-def _save_uploaded_image(file_obj):
-    if not file_obj or not file_obj.filename:
-        return None
-
-    filename = secure_filename(file_obj.filename)
-    if not filename or not _allowed_image(filename):
-        return None
-
-    upload_dir = os.path.join(app.root_path, "static", "uploads")
-    os.makedirs(upload_dir, exist_ok=True)
-
-    timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S%f")
-    unique_name = f"{timestamp}_{filename}"
-    file_path = os.path.join(upload_dir, unique_name)
-    file_obj.save(file_path)
-
-    return f"/static/uploads/{unique_name}"
-
-
 def _upload_cover_image(file_obj):
+    """
+    This is your primary helper function. 
+    Call this from your 'create post' route.
+    """
     if not file_obj or not getattr(file_obj, "filename", None):
         return None
 
+    # 1. Tries cloud storage
     cloudinary_url = upload_image_to_cloudinary(file_obj)
     if cloudinary_url:
         return cloudinary_url
 
+    # 2. Automatically falls back to local storage if cloud fails
+    if hasattr(file_obj, "seek"):
+        file_obj.seek(0)
     return _save_uploaded_image(file_obj)
+    
 
 
 def _serialize_admin_draft(post_obj):
