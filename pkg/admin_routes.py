@@ -29,8 +29,6 @@ from pkg.helpers import (
     _render_comments_page,
     _normalize_label,
     _render_categories_page,
-    _allowed_image,
-    _save_uploaded_image,
     _upload_cover_image,
     _get_post_category,
     _serialize_admin_draft,

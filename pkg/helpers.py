@@ -9,7 +9,7 @@ from werkzeug.utils import secure_filename
 from pkg import app
 from pkg.blogmodel import Admin, Category, Comment, Post, Subcategory, Tag, db
 from pkg.forms import _strip_html
-from pkg.upload import upload_image_to_cloudinary
+from pkg.upload import upload_image_to_cloudinary, _save_uploaded_image
 
 
 def _format_post_date(created_at):
