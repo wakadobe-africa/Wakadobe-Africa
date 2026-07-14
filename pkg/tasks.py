@@ -26,7 +26,12 @@ def _safe_enqueue(job_func, *args):
         return True
     except Exception as exc:
         current_app.logger.exception("Failed to enqueue background job: %s", exc)
-        return False
+        try:
+            job_func(*args)
+            return True
+        except Exception as fallback_exc:
+            current_app.logger.exception("Fallback direct send failed: %s", fallback_exc)
+            return False
 
 
 def _send_message_now(msg):
@@ -63,7 +68,7 @@ def send_admin_otp_email(to_email, otp_code):
     with app.app_context():
         msg = Message(
             subject="Your Wakadobe admin verification code",
-            sender=current_app.config.get("MAIL_DEFAULT_SENDER") or current_app.config.get("MAIL_USERNAME"),
+            sender=current_app.config.get("MAIL_USERNAME"),
             recipients=[to_email],
         )
         msg.body = (
