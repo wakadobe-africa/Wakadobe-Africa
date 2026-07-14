@@ -68,7 +68,7 @@ def send_admin_otp_email(to_email, otp_code):
     with app.app_context():
         msg = Message(
             subject="Your Wakadobe admin verification code",
-            sender=current_app.config.get("MAIL_USERNAME"),
+            sender=current_app.config.get("MAIL_DEFAULT_SENDER") or current_app.config.get("MAIL_USERNAME"),
             recipients=[to_email],
         )
         msg.body = (
