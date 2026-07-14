@@ -7,8 +7,7 @@ import pyotp
 from itsdangerous import URLSafeTimedSerializer
 from flask import current_app, request, url_for
 
-from pkg.tasks import send_admin_otp_email as enqueue_admin_otp_email
-from pkg.tasks import send_verification_email as enqueue_verification_email
+from pkg.tasks import enqueue_admin_otp_email, enqueue_verification_email
 
 # The app now routes email delivery through task functions instead of sending
 # mail directly inside the request. This keeps the request path short and makes

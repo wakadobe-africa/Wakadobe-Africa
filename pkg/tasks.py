@@ -26,10 +26,12 @@ def _send_message_now(msg):
         mail.send(msg)
     except Exception as exc:
         current_app.logger.exception("Email send failed: %s", exc)
-        raise
+        return False
     finally:
         import socket
         socket.setdefaulttimeout(None)
+
+    return True
 
 
 def send_verification_email(to_email, url):
@@ -40,7 +42,7 @@ def send_verification_email(to_email, url):
             recipients=[to_email],
         )
         msg.body = f"Please click the following link to verify your email address: {url}"
-        _send_message_now(msg)
+        return _send_message_now(msg)
 
 
 def enqueue_verification_email(to_email, url):
@@ -60,7 +62,7 @@ def send_admin_otp_email(to_email, otp_code):
             f"{otp_code}\n\n"
             "This code expires in 5 minutes. If you did not request this, please ignore this message."
         )
-        _send_message_now(msg)
+        return _send_message_now(msg)
 
 
 def enqueue_admin_otp_email(to_email, otp_code):
