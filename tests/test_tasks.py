@@ -1,10 +1,27 @@
+import os
 import unittest
 from unittest.mock import MagicMock, patch
 
-from pkg.tasks import enqueue_admin_otp_email, enqueue_verification_email, send_verification_email
+from pkg.tasks import (
+    enqueue_admin_otp_email,
+    enqueue_verification_email,
+    get_queue,
+    send_verification_email,
+)
 
 
 class TaskQueueTests(unittest.TestCase):
+    def test_get_queue_uses_redis_url_without_forcing_ssl_false(self):
+        queue = MagicMock()
+        with patch.dict(os.environ, {"REDIS_URL": "rediss://example.com"}, clear=False):
+            with patch("pkg.tasks.Redis.from_url", return_value="redis-conn") as mock_from_url, patch(
+                "pkg.tasks.Queue", return_value=queue
+            ) as mock_queue:
+                get_queue()
+
+        mock_from_url.assert_called_once_with("rediss://example.com")
+        mock_queue.assert_called_once_with(connection="redis-conn")
+
     def test_enqueue_verification_email_uses_queue_when_available(self):
         queue = MagicMock()
         with patch("pkg.tasks.get_queue", return_value=queue):
