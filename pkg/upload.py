@@ -37,41 +37,45 @@ def upload_image_to_cloudinary(file_obj, folder=None):
     if not file_obj or not getattr(file_obj, "filename", None):
         return None
 
-    cloudinary_env_url = os.environ.get("CLOUDINARY_URL")
-    if cloudinary_env_url:
-        cloudinary.config(cloudinary_url=cloudinary_env_url, secure=True)
-    else:
-        logger.error("CLOUDINARY_URL environment variable is missing!")
+    app_config = getattr(current_app, "config", {})
+    cloudinary_url = (
+        app_config.get("CLOUDINARY_URL")
+        or app_config.get("cloudinary_url")
+        or os.environ.get("CLOUDINARY_URL")
+    )
+
+    env_name = str(app_config.get("ENV") or os.environ.get("ENV") or "").strip().lower()
+    is_production = env_name in {"production", "prod", "live"} or app_config.get("DEBUG") is False
+
+    if not cloudinary_url:
+        if is_production:
+            logger.error("Cloudinary upload requested in production but CLOUDINARY_URL is not configured.")
+            raise RuntimeError("Cloudinary is not configured for production uploads.")
+        logger.warning("Cloudinary URL is missing; falling back to local disk for development uploads.")
         return _save_uploaded_image(file_obj)
 
+    cloudinary.config(cloudinary_url=cloudinary_url, secure=True)
+
     if folder is None:
-        folder = os.environ.get("CLOUDINARY_FOLDER", "wakadobe/cover_images")
+        folder = app_config.get("CLOUDINARY_FOLDER") or os.environ.get("CLOUDINARY_FOLDER", "wakadobe/cover_images")
 
     try:
-        # Reset the file reader pointer to the beginning of the file stream
         if hasattr(file_obj, "seek"):
             file_obj.seek(0)
 
-        # Get folder configuration or fallback to a default path
-        folder_path = os.environ.get("CLOUDINARY_FOLDER", "wakadobe/cover_images")
-
-        # Execute upload request
         result = cloudinary_upload(
             file_obj,
-            folder=folder_path,
+            folder=folder,
             use_filename=True,
             unique_filename=True,
             overwrite=False,
         )
-        
-        # Return the secure HTTPS URL to be saved in your database
         return result.get("secure_url")
 
-    except Exception as e:
-        # If the upload fails, log the exact problem and fall back to local disk
-        logger.error(f"Cloudinary upload failed: {str(e)}")
-        
-        # Reset stream pointer again before saving locally so the file isn't empty
+    except Exception:
+        logger.exception("Cloudinary upload failed")
+        if is_production:
+            raise
         if hasattr(file_obj, "seek"):
             file_obj.seek(0)
         return _save_uploaded_image(file_obj)

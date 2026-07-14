@@ -436,15 +436,14 @@ body.post-page {
     max-width: 860px;
     margin: 0 auto;
     background-color: #ffffff;
-    border: 1px solid #dce5f3;
-    border-radius: 14px;
+    border: none;
     box-shadow: 0 14px 30px rgba(17, 48, 79, 0.08);
     overflow: hidden;
 }
 
 .post-cover {
     width: 100%;
-    height: clamp(220px, 42vw, 360px);
+    height: clamp(220px, 32vw, 360px);
     object-fit: cover;
     display: block;
 }
@@ -461,7 +460,7 @@ body.post-page {
 
 .post-paragraph {
     color: #233247;
-    line-height: 1.8;
+    line-height: 1.5;
     margin-bottom: 16px;
     font-size: 1rem;
 }

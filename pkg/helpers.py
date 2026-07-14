@@ -134,23 +134,40 @@ def _render_categories_page(form_error=None, form_success=None):
     )
 
 
+def _get_cover_upload_feedback(file_obj, error_message=None):
+    if file_obj is None:
+        return None
+
+    if isinstance(file_obj, str):
+        filename = file_obj.strip()
+    else:
+        filename = getattr(file_obj, "filename", None)
+
+    if not filename:
+        return None
+    if error_message:
+        return "Cover image upload failed. The post will use the default cover image."
+    return None
+
+
 def _upload_cover_image(file_obj):
     """
-    This is your primary helper function. 
-    Call this from your 'create post' route.
+    This is your primary helper function.
+    It returns a Cloudinary URL when available, otherwise None.
     """
     if not file_obj or not getattr(file_obj, "filename", None):
         return None
 
-    # 1. Tries cloud storage
-    cloudinary_url = upload_image_to_cloudinary(file_obj)
+    try:
+        cloudinary_url = upload_image_to_cloudinary(file_obj)
+    except Exception as exc:
+        current_app.logger.exception("Cover image upload failed: %s", exc)
+        return None
+
     if cloudinary_url:
         return cloudinary_url
 
-    # 2. Automatically falls back to local storage if cloud fails
-    if hasattr(file_obj, "seek"):
-        file_obj.seek(0)
-    return _save_uploaded_image(file_obj)
+    return None
     
 
 

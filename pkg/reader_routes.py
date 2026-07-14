@@ -3,7 +3,7 @@ from sqlalchemy import func
 from werkzeug.security import check_password_hash, generate_password_hash
 from pkg import app
 from pkg.blogmodel import Category, Comment, Post, Reader, Subcategory, db
-from pkg.token import generate_email_address_verify, send_email, verify_signup_token
+from pkg.token import build_signed_url, generate_email_address_verify, send_email, verify_signup_token
 from pkg.forms import PasswordResetEmailForm, ReaderLoginForm, ReaderResetPasswordForm, ReaderSignupForm, _strip_html
 from pkg.helpers import (
     _format_post_date,
@@ -213,10 +213,9 @@ def reader_signup():
     )
     db.session.add(reader_obj)
     db.session.commit()
-    verification_url = url_for(
-    "verify_signup_email", 
-    token=generate_email_address_verify(reader_obj.email, salt="email-verify"), 
-    _external=True
+    verification_url = build_signed_url(
+        "verify_signup_email",
+        generate_email_address_verify(reader_obj.email, salt="email-verify"),
     )
     send_email(reader_obj.email, verification_url)
     flash("Account created successfully! Please log in.")
@@ -361,7 +360,7 @@ def reset_verify_email():
     # Excellent practice: Keeping this logic uniform prevents database scraping
     if reader_obj:
         token = generate_email_address_verify(reader_obj.email, salt="password-reset")
-        reset_url = url_for("reader_reset_password", token=token, _external=True)
+        reset_url = build_signed_url("reader_reset_password", token)
         send_email(reader_obj.email, reset_url)
     
     flash("Password reset link has been sent to your email.", "info")

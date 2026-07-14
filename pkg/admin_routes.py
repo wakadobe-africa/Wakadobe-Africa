@@ -7,6 +7,7 @@ from sqlalchemy.orm import joinedload
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from pkg import app
+from pkg.upload import _save_uploaded_image
 from pkg.blogmodel import Admin, Category, Comment, Post, Subcategory, Tag, db
 from pkg.token import generate_admin_otp, send_admin_otp_email, verify_admin_otp
 from pkg.forms import (
@@ -36,8 +37,8 @@ from pkg.helpers import (
     _get_or_create_default_subcategory,
     _load_category_and_tag_choices,
     _serialize_dashboard_post,
-    _format_time_only
-    
+    _format_time_only,
+    _get_cover_upload_feedback,
 )
 from pkg.limiter import limiter
 from pkg.route_constants import ADMIN_PENDING_OTP_KEY, ADMIN_SESSION_KEY
@@ -701,6 +702,10 @@ def create_post():
     editing_draft_id = form.draft_id.data
 
     cover_path = _upload_cover_image(form.cover_image.data)
+    cover_upload_feedback = _get_cover_upload_feedback(
+        form.cover_image.data,
+        None if cover_path else "Cover image upload failed. The post will use the default cover image."
+    )
 
     valid_status = "draft" if post_status == "draft" else "published"
 
@@ -751,6 +756,9 @@ def create_post():
 
     post_obj.tags = post_tags
     db.session.commit()
+
+    if cover_upload_feedback:
+        flash(cover_upload_feedback, "warning")
 
     return redirect(url_for("admin"))
 

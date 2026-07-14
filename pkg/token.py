@@ -1,12 +1,18 @@
 import base64
 import hashlib
 import hmac
+from urllib.parse import urlencode
+
 import pyotp
-import threading
-from flask_mail import Message
 from itsdangerous import URLSafeTimedSerializer
-from flask import current_app
-from pkg import mail
+from flask import current_app, request, url_for
+
+from pkg.tasks import send_admin_otp_email as enqueue_admin_otp_email
+from pkg.tasks import send_verification_email as enqueue_verification_email
+
+# The app now routes email delivery through task functions instead of sending
+# mail directly inside the request. This keeps the request path short and makes
+# it easier to replace this with a real queue worker later.
 
 
 
@@ -45,41 +51,22 @@ def verify_signup_token(token, salt):
         return None
 
 
-def _send_message_in_thread(msg):
-    """Helper to send email in background thread."""
-    try:
-        import socket
-        # Set socket timeout to prevent indefinite hangs
-        socket.setdefaulttimeout(5)
-        mail.send(msg)
-    except Exception as e:
-        current_app.logger.error("Failed to send email: %s", str(e))
-    finally:
-        import socket
-        socket.setdefaulttimeout(None)
+def build_signed_url(endpoint, token, **values):
+    path = url_for(endpoint, **values)
+    query = urlencode({"token": token}, safe="")
+
+    if request.url_root:
+        base_url = request.url_root.rstrip("/")
+        return f"{base_url}{path}?{query}"
+
+    scheme = current_app.config.get("PREFERRED_URL_SCHEME", "http")
+    server_name = current_app.config.get("SERVER_NAME") or "127.0.0.1:5000"
+    return f"{scheme}://{server_name}{path}?{query}"
 
 
 def send_email(to_email, url):
-    msg = Message(
-        subject="Verify your email address",
-        sender=current_app.config["MAIL_USERNAME"],
-        recipients=[to_email],
-    )
-    msg.body = f"Please click the following link to verify your email address: {url}"
-    thread = threading.Thread(target=_send_message_in_thread, args=(msg,), daemon=True)
-    thread.start()
+    enqueue_verification_email(to_email, url)
 
 
 def send_admin_otp_email(to_email, otp_code):
-    msg = Message(
-        subject="Your Wakadobe admin verification code",
-        sender=current_app.config["MAIL_USERNAME"],
-        recipients=[to_email],
-    )
-    msg.body = (
-        "Use the verification code below to complete your Wakadobe admin action:\n\n"
-        f"{otp_code}\n\n"
-        "This code expires in 5 minutes. If you did not request this, please ignore this message."
-    )
-    thread = threading.Thread(target=_send_message_in_thread, args=(msg,), daemon=True)
-    thread.start()
+    enqueue_admin_otp_email(to_email, otp_code)
