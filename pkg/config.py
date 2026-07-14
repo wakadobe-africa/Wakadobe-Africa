@@ -30,6 +30,7 @@ class General(object):
     MAIL_USE_TLS = os.getenv('MAIL_USE_TLS', 'True').strip().lower() in ('1', 'true', 'yes')
     MAIL_USERNAME = os.getenv('MAIL_USERNAME')
     MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
+    MAIL_DEFAULT_SENDER = os.getenv('EMAIL_FROM', 'forlarinkayode@gmail.com')
     MAIL_TIMEOUT = 5  # 5-second timeout for SMTP connections
     CLOUDINARY_URL = os.getenv('CLOUDINARY_URL')
     CLOUDINARY_FOLDER = os.getenv('CLOUDINARY_FOLDER', 'wakadobe/cover_images')
@@ -43,7 +44,9 @@ class LiveConfig(General):
     SESSION_COOKIE_HTTPONLY = True  # helps prevent XSS attacks
     SESSION_COOKIE_SECURE = True  # set to True in production with HTTPS
     SESSION_COOKIE_SAMESITE = 'Lax'  # helps prevent CSRF attacks
-    PERMANENT_SESSION_LIFETIME = 3600  
+    PERMANENT_SESSION_LIFETIME = 3600 
+    MAIL_DEFAULT_SENDER = os.getenv('EMAIL_FROM', 'forlarinkayode@gmail.com') 
+    MAIL_USE_SSL=False
     
 class TestConfig(General):
     DEBUG = True
