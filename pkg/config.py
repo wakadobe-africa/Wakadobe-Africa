@@ -34,6 +34,7 @@ class General(object):
     CLOUDINARY_URL = os.getenv('CLOUDINARY_URL')
     CLOUDINARY_FOLDER = os.getenv('CLOUDINARY_FOLDER', 'wakadobe/cover_images')
     OTP_SECRET = os.getenv('OTP_SECRET', SECRET_KEY)
+    REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
 
 
 class LiveConfig(General):

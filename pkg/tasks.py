@@ -19,6 +19,16 @@ def get_queue():
     return Queue(connection=Redis.from_url(redis_url))
 
 
+def _safe_enqueue(job_func, *args):
+    try:
+        queue = get_queue()
+        queue.enqueue(job_func, *args)
+        return True
+    except Exception as exc:
+        current_app.logger.exception("Failed to enqueue background job: %s", exc)
+        return False
+
+
 def _send_message_now(msg):
     try:
         import socket
@@ -46,8 +56,7 @@ def send_verification_email(to_email, url):
 
 
 def enqueue_verification_email(to_email, url):
-    queue = get_queue()
-    queue.enqueue(send_verification_email, to_email, url)
+    return _safe_enqueue(send_verification_email, to_email, url)
 
 
 def send_admin_otp_email(to_email, otp_code):
@@ -66,5 +75,4 @@ def send_admin_otp_email(to_email, otp_code):
 
 
 def enqueue_admin_otp_email(to_email, otp_code):
-    queue = get_queue()
-    queue.enqueue(send_admin_otp_email, to_email, otp_code)
+    return _safe_enqueue(send_admin_otp_email, to_email, otp_code)
